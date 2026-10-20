@@ -1,0 +1,13 @@
+### Lazy ###
+# started 2026-10-20  Johan Torstensson 
+# this require the platformio.ini to include: 
+# monitor_port = COM3
+# upload_port = COM3
+
+pio run --target upload --target monitor
+
+
+
+
+
+
