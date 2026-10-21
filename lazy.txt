@@ -6,6 +6,10 @@
 
 pio run --target upload --target monitor
 
+pio run -e esp32-s3-devkitc-1 -t upload -t monitor
+
+pio run -t upload -t monitor
+
 
 
 

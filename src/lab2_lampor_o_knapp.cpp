@@ -14,6 +14,7 @@
  * TRYCKKNAPP (Pull-down via mjukvara):
  *   - Ena sidan av knappen   -->  3.3V (Röd skena)
  *   - Andra sidan (Signalen) -->  GPIO 4 (Digital ingång)
+ *   - GPIO 4 (require external pulldown 10Kohm resistor to gnd)
  * -------------------------------------------------------------
  */
 
@@ -23,6 +24,7 @@
 const uint8_t KPinLedGreen = 14; // Grön LED på GPIO 14
 const uint8_t KPinLedRed = 15;   // Röd LED på GPIO 15
 const uint8_t KPinButton = 4;    // Tryckknapp på GPIO 4
+
 
 // Variabel för att hålla reda på knappens status
 int buttonState = 0;
@@ -55,6 +57,7 @@ void loop() {
         // Om knappen är släppt: Släck grön, tänd röd
         digitalWrite(KPinLedGreen, LOW);
         digitalWrite(KPinLedRed, HIGH);
+        Serial.println("Knapp släppt -> Röd LED lyser");
     }
     
     delay(50); // Kort fördröjning för att undvika kontaktstuds (debounce)
