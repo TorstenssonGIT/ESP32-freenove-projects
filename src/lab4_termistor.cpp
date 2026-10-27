@@ -7,7 +7,7 @@
  *   - 3.3V --> 10 kΩ fast motstånd --> GPIO 1 --> termistor --> GND
  *
  * SERVOMOTOR:
- *   - Signalledning --> GPIO 2
+ *   - Signalledning --> GPIO 4
  *   - Matning       --> extern lämplig matning
  *   - Matningens GND och ESP32 GND ska vara gemensamma
  * -------------------------------------------------------------
@@ -17,7 +17,7 @@
 #include <math.h>
 
 const uint8_t KPinAdc1 = 1;
-const uint8_t KPinServo = 2;
+const uint8_t KPinServo = 4;
 const float KSupplyVoltage = 3.3f;
 const float KAdcMaximum = 4095.0f;
 const float KThermistorBeta = 3950.0f;
@@ -28,11 +28,13 @@ const float KKelvinAtZeroCelsius = 273.15f;
 const float KServoMinimumTemperature = 20.0f;
 const float KServoMaximumTemperature = 40.0f;
 const uint32_t KServoFrequency = 50;
-const uint8_t KServoResolution = 16;
+const uint8_t KServoResolution = 14;
 const uint8_t KServoChannel = 0;
 const uint16_t KServoMinimumPulseMicros = 500;
 const uint16_t KServoMaximumPulseMicros = 2500;
 const uint32_t KServoDutyMaximum = (1UL << KServoResolution) - 1;
+// Debug input connected to the PWM output for measuring pulse width.
+const uint8_t KPinPwmMonitor = 5;
 
 void writeServoAngle(uint8_t angle) {
     const uint16_t pulseMicros = map(
@@ -46,11 +48,15 @@ void writeServoAngle(uint8_t angle) {
 void setup() {
     Serial.begin(115200);
     analogReadResolution(12);
+    analogSetPinAttenuation(KPinAdc1, ADC_11db);
     pinMode(KPinAdc1, INPUT);
+    pinMode(KPinPwmMonitor, INPUT);
 
     if (!ledcAttachChannel(KPinServo, KServoFrequency, KServoResolution, KServoChannel)) {
         Serial.println("Fel: kunde inte konfigurera servomotorns PWM-utgång.");
-        return;
+        while (true) {
+            delay(1000);
+        }
     }
 
     writeServoAngle(0);
@@ -59,14 +65,26 @@ void setup() {
 
 void loop() {
     const uint16_t valueAdc = analogRead(KPinAdc1);
+    const uint32_t voltageMillivolts = analogReadMilliVolts(KPinAdc1);
 
     if (valueAdc == 0 || valueAdc >= KAdcMaximum) {
-        Serial.println("Fel: termistorns ADC-värde ligger utanför mätområdet.");
+        Serial.print("Fel: ADC=");
+        Serial.print(valueAdc);
+        Serial.print(", spänning=");
+        Serial.print(voltageMillivolts);
+        Serial.println(" mV.");
+
+        if (valueAdc == 0) {
+            Serial.println("Kontrollera att GPIO 1 inte är kortsluten till GND och att termistorn sitter mellan GPIO 1 och GND.");
+        } else {
+            Serial.println("Kontrollera att GPIO 1 inte är öppen eller direkt ansluten till 3.3V. Koppla 3.3V -> 10 kOhm motstand -> GPIO 1 -> termistor -> GND.");
+        }
+
         delay(500);
         return;
     }
 
-    const float valueVoltage = KSupplyVoltage * valueAdc / KAdcMaximum;
+    const float valueVoltage = voltageMillivolts / 1000.0f;
     const double resistanceThermistor =
         KThermistorOhmAt25Celsius * valueVoltage / (KSupplyVoltage - valueVoltage);
     const double temperatureKelvin =
@@ -83,12 +101,16 @@ void loop() {
               (KServoMaximumTemperature - KServoMinimumTemperature)));
 
     writeServoAngle(servoAngle);
-
     Serial.print("Temperatur: ");
     Serial.print(temperatureCelsius, 1);
     Serial.print(" °C, servo: ");
     Serial.print(servoAngle);
     Serial.println("°");
+    // Connect GPIO 5 to GPIO 4 to measure the servo PWM pulse.
+    const uint32_t pulseMicros = pulseIn(KPinPwmMonitor, HIGH, 30000);
+    Serial.print("PWM pulse: ");
+    Serial.print(pulseMicros);
+    Serial.println(" us");
 
     delay(500);
 }
