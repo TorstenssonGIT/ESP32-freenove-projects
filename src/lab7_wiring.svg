@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560" role="img" aria-labelledby="title description">
+  <title id="title">Lab 7 ultrasonic sensor and LCD wiring</title>
+  <desc id="description">Wiring diagram for an ESP32-S3, HC-SR04 ultrasonic sensor with an ECHO voltage divider, and a PCF8574T I2C LCD.</desc>
+  <style>
+    text { font-family: Arial, Helvetica, sans-serif; fill: #172033; }
+    .title { font-size: 25px; font-weight: 700; }
+    .heading { font-size: 18px; font-weight: 700; }
+    .pin { font-size: 15px; }
+    .note { font-size: 14px; fill: #34445e; }
+    .card { fill: #f5f8fc; stroke: #8293aa; stroke-width: 2; rx: 12; }
+    .board { fill: #e8f4ec; stroke: #39805a; stroke-width: 3; rx: 16; }
+    .wire { fill: none; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+  <rect width="1000" height="560" fill="#ffffff"/>
+  <text x="500" y="42" text-anchor="middle" class="title">Lab 7 — Ultrasonic distance display</text>
+
+  <rect x="35" y="95" width="245" height="180" class="card"/>
+  <text x="157" y="127" text-anchor="middle" class="heading">HC-SR04</text>
+  <text x="60" y="165" class="pin">VCC</text>
+  <text x="60" y="198" class="pin">TRIG</text>
+  <text x="60" y="231" class="pin">ECHO</text>
+  <text x="60" y="260" class="pin">GND</text>
+
+  <rect x="390" y="80" width="260" height="330" class="board"/>
+  <text x="520" y="117" text-anchor="middle" class="heading">ESP32-S3</text>
+  <text x="415" y="163" class="pin">5V</text>
+  <text x="415" y="198" class="pin">GPIO 13 (TRIG)</text>
+  <text x="415" y="235" class="pin">GPIO 21 (ECHO)</text>
+  <text x="415" y="278" class="pin">GPIO 1 (SDA)</text>
+  <text x="415" y="313" class="pin">GPIO 2 (SCL)</text>
+  <text x="415" y="350" class="pin">3V3</text>
+  <text x="415" y="385" class="pin">GND</text>
+
+  <rect x="720" y="95" width="245" height="180" class="card"/>
+  <text x="842" y="127" text-anchor="middle" class="heading">LCD1602 + PCF8574T</text>
+  <text x="745" y="165" class="pin">SCK / SCL</text>
+  <text x="745" y="198" class="pin">SDA</text>
+  <text x="745" y="231" class="pin">VCC</text>
+  <text x="745" y="260" class="pin">GND</text>
+
+  <path d="M280 160 H350 V158 H390" class="wire" stroke="#dc7c24"/>
+  <path d="M280 193 H355 V193 H390" class="wire" stroke="#3576cf"/>
+  <path d="M280 258 H340 V383 H390" class="wire" stroke="#3b4554"/>
+  <path d="M650 310 H685 V160 H720" class="wire" stroke="#8a60b5"/>
+  <path d="M650 275 H700 V193 H720" class="wire" stroke="#3576cf"/>
+  <path d="M650 348 H685 V228 H720" class="wire" stroke="#dc7c24"/>
+  <path d="M650 383 H690 V258 H720" class="wire" stroke="#3b4554"/>
+
+  <rect x="45" y="325" width="900" height="190" class="card"/>
+  <text x="70" y="360" class="heading">ECHO voltage divider (use these two resistors)</text>
+  <text x="75" y="413" class="pin">Sensor ECHO</text>
+  <path d="M180 408 H255" class="wire" stroke="#cf4b4b"/>
+  <rect x="255" y="388" width="125" height="40" fill="#fff" stroke="#52647d" stroke-width="2" rx="6"/>
+  <text x="317" y="414" text-anchor="middle" class="pin">5.1 kΩ</text>
+  <path d="M380 408 H480" class="wire" stroke="#cf4b4b"/>
+  <circle cx="480" cy="408" r="7" fill="#cf4b4b"/>
+  <path d="M480 408 H565" class="wire" stroke="#cf4b4b"/>
+  <text x="575" y="414" class="pin">GPIO 21</text>
+  <path d="M480 408 V455 H520" class="wire" stroke="#3b4554"/>
+  <rect x="520" y="435" width="125" height="40" fill="#fff" stroke="#52647d" stroke-width="2" rx="6"/>
+  <text x="582" y="461" text-anchor="middle" class="pin">6.8 kΩ</text>
+  <path d="M645 455 H700" class="wire" stroke="#3b4554"/>
+  <text x="710" y="461" class="pin">GND</text>
+  <text x="75" y="488" class="note">Connect sensor GND and ESP32-S3 GND together. Never connect ECHO directly to the ESP32 GPIO.</text>
+</svg>
