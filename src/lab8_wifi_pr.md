@@ -67,3 +67,35 @@ Scan output on Serial now shows the SSID as text next to the hex form.
 ### Security checklist
 - [ ] `include/wifi_credentials.h` is NOT staged (`git status`)
 - [ ] No passwords or private network details in the diff
+
+---
+
+## 8.3 Python smoke-test for the Wi-Fi scan
+
+**Branch:** `lab8/wifi-scan-python-smoke-test`
+
+### Summary
+Adds a Python smoke-test that reads one full scan from Serial and validates
+the scan protocol from 8.1/8.2.
+
+### Changes
+- `src/lab8_wifi_scan_smoke_test.py` (new)
+  - Waits for `SCAN_BEGIN` .. `SCAN_END` (default timeout 90 s).
+  - Checks `SCAN_RESULT`/`SCAN_END` counts match the number of `AP` lines.
+  - Validates each `AP` line: index order, `ssid_hex` decodes to `ssid`,
+    RSSI -100..0, channel 1..14, known `auth` name.
+  - Prints a summary and lists OPEN networks.
+  - Exit code 0 = PASS, 1 = FAIL.
+
+### How to run
+Close the serial monitor first, then:
+`python src/lab8_wifi_scan_smoke_test.py --port COM5`
+
+### Testing
+- [ ] `pip install pyserial` done
+- [ ] Smoke-test prints PASS against the ESP32-S3
+- [ ] Summary matches the networks shown on the LCD
+
+### Security checklist
+- [ ] `include/wifi_credentials.h` is NOT staged (`git status`)
+- [ ] No passwords or private network details in the diff
