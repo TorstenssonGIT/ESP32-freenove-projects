@@ -130,6 +130,19 @@ void showNetworkOnLcd(int16_t index, const String& ssid) {
 
 // Translate the ESP32 security mode into a short readable name.
 // "OPEN" means the network has no Wi-Fi password at all.
+// Value	Mode	Meaning
+// 0	OPEN	        No password and no encryption; anyone nearby can join and read the traffic.
+// 1	WEP	            Old encryption from 1999, crackable in minutes. Treat it as insecure.
+// 2	WPA_PSK	        WPA with a shared password (TKIP). Outdated and weak.
+// 3	WPA2_PSK	    WPA2 with a shared password (AES). The common home standard.
+// 4	WPA_WPA2_PSK	Mixed mode: accepts both WPA and WPA2 clients, for compatibility with old devices.
+// 5	WPA2_ENTERPRISE	WPA2 where each user logs in with their own account through a RADIUS server (offices, eduroam).
+// 6	WPA3_PSK	    WPA3 with a password (SAE). Resists offline password guessing. The current best for homes.
+// 7	WPA2_WPA3_PSK	Transition mode: WPA3 for new devices, WPA2 for older ones.
+// 8	WAPI_PSK	    Chinese national Wi-Fi standard with a password. Rare outside China.
+// 9+	UNKNOWN	        Modes the code doesn’t map, e.g. 9 = OWE (Enhanced Open), 
+// 10+  ENTERPRISE      WPA3-Enterprise variants.
+
 const char* getAuthModeName(wifi_auth_mode_t authMode) {
     switch (authMode) {
         case WIFI_AUTH_OPEN:            return "OPEN";
@@ -146,6 +159,9 @@ const char* getAuthModeName(wifi_auth_mode_t authMode) {
 }
 
 // Print every byte of the SSID as two hex digits ("Hi" -> "4869").
+// This is used in the Serial output so that spaces, symbols, and non-ASCII
+// characters cannot break the line format.
+
 void printSsidAsHex(const String& ssid) {
     for (size_t position = 0; position < ssid.length(); ++position) {
         const uint8_t character = static_cast<uint8_t>(ssid[position]);
@@ -156,12 +172,39 @@ void printSsidAsHex(const String& ssid) {
     }
 }
 
+// Print the SSID as readable text in quotes, e.g. ssid="Summer-2G4".
+// Hidden networks print as ssid="". Characters that are not printable
+// ASCII, and the quote character itself, become '?' so the line format
+// can never break.
+// Example: ssid="My?Home?Network" for a network named "My\x01Home\x7FNetwork".
+
+void printSsidAsText(const String& ssid) {
+    Serial.print('"');
+    for (size_t position = 0; position < ssid.length(); ++position) {
+        const uint8_t character = static_cast<uint8_t>(ssid[position]);
+        const bool isPrintable = character >= 32 && character <= 126;
+        const bool isQuote = character == '"';
+        Serial.print(isPrintable && !isQuote ? static_cast<char>(character) : '?');
+    }
+    Serial.print('"');
+}
+
 // Print one "AP ..." line for the network at 'index'.
+// Example: "AP index=0 ssid_hex=4869 ssid=homewifi rssi=-67 channel=6 auth=WPA2_PSK"
+// The SSID is printed as hex so that spaces, symbols, and non-ASCII
+// characters can never break the line format.
+// The SSID is also printed as readable text in quotes, e.g. ssid="Summer-2G4".
+// Hidden networks print as ssid="". Characters that are not printable
+// ASCII, and the quote character itself, become '?' so the line format
+// can never break.
+
 void printNetworkToSerial(int16_t index, const String& ssid) {
     Serial.print("AP index=");
     Serial.print(index);
     Serial.print(" ssid_hex=");
     printSsidAsHex(ssid);
+    Serial.print(" ssid=");
+    printSsidAsText(ssid);
     Serial.print(" rssi=");
     Serial.print(WiFi.RSSI(index));
     Serial.print(" channel=");
@@ -176,6 +219,9 @@ void printNetworkToSerial(int16_t index, const String& ssid) {
 // =============================================================================
 
 // Called when WiFi.scanNetworks() returns a negative error code.
+// The error code is printed to the Serial monitor, and the LCD shows
+// "Scan failed" for a few seconds.
+
 void reportScanFailure(int16_t errorCode) {
     showOnLcd("Scan failed");
 
@@ -185,6 +231,14 @@ void reportScanFailure(int16_t errorCode) {
 }
 
 // Called when the scan succeeded: show the count, then each network.
+// The network count is printed to the Serial monitor, and each network
+// is printed in a machine-readable format. Each network is also shown on the LCD
+// for a few seconds, one at a time.
+// The LCD shows the SSID on line 1, and the index, RSSI, and channel on line 2.
+// Example LCD output for a network named "MyHomeNetwork":
+//   line 1: "MyHomeNetwork   "
+//   line 2: "3 -67dBm CH6"
+
 void reportScanResults(int16_t networkCount) {
     char countLine[KLcdColumns + 1];
     snprintf(countLine, sizeof(countLine), "%d", networkCount);
@@ -210,6 +264,11 @@ void reportScanResults(int16_t networkCount) {
 // =============================================================================
 
 // Run one complete scan and report it on the LCD and Serial.
+// The scan is synchronous: this function does not return until the scan is done.
+// The scan is asynchronous by default, but the ESP32 WiFi library provides a synchronous version that blocks until the scan is complete.
+// The scan includes hidden networks (those that do not broadcast their SSID).
+// The scan results are deleted from memory after reporting, to free up RAM.
+
 void scanNetworks() {
     digitalWrite(KPinStatusLed, HIGH);  // LED on: scan in progress
     showOnLcd("Scanning WiFi...", "2.4 GHz");
@@ -237,6 +296,12 @@ void scanNetworks() {
 // =============================================================================
 //  Arduino entry points
 // =============================================================================
+// The setup() function runs once when the ESP32-S3 is powered on or reset.
+//  The loop() function runs repeatedly after setup() finishes.
+// The loop() function checks if a scan is due, and if so, runs one scan.
+// The loop() function also includes a small delay to avoid using 100% CPU.
+// The scan is due if this is the first scan, or if the time since the last scan exceeds KScanIntervalMillis.
+// The scan is synchronous, so the loop() function will block until the scan is complete.
 
 void setup() {
     Serial.begin(115200);
@@ -258,6 +323,9 @@ void setup() {
 
     Serial.println("Lab 8 Wi-Fi scan ready.");
 }
+
+// tHe loop() function runs repeatedly after setup() finishes.
+// The loop() function checks if a scan is due, and if so, runs one scan.
 
 void loop() {
     // Unsigned subtraction keeps this correct when millis() wraps around.
