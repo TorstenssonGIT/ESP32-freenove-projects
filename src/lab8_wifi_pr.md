@@ -46,4 +46,24 @@ None. LCD and Serial output are the same as before from lab 7.
 
 ---
 
-<!-- ## 8.2 <next step title>  — add here -->
+## 8.2 Readable SSID on Serial
+
+**Branch:** `lab8/wifi-scan-readable-ssid-on-serial`
+
+### Summary
+Scan output on Serial now shows the SSID as text next to the hex form.
+
+### Changes
+- `src/lab8_wifi_scan.cpp`
+  - New helper `printSsidAsText`: quoted SSID; non-printable characters and `"` shown as `?`.
+  - `AP` lines gain `ssid="<text>"` after `ssid_hex=`.
+  - `ssid_hex` kept for reliable parsing.
+
+### Testing
+- [ ] Firmware builds
+- [ ] Serial `AP` lines show readable SSIDs; hidden networks show `ssid=""`
+- [ ] LCD output unchanged
+
+### Security checklist
+- [ ] `include/wifi_credentials.h` is NOT staged (`git status`)
+- [ ] No passwords or private network details in the diff
