@@ -37,6 +37,6 @@ pio run -t upload -t monitor
 
 ## Wi-Fi credentials
 
-Copy `include/wifi_credentials.example.h` to `include/wifi_credentials.h`
-and fill in the real values. That file is local only and ignored by git;
-check `git status` before every commit and ensure it is not in the list.
+Lab 8 programs ask for the Wi-Fi SSID and password over Serial the first time
+and store them in the ESP32's flash, not in any file. See
+[How Wi-Fi credentials work](src/lab8_wifi.md#how-wi-fi-credentials-work).

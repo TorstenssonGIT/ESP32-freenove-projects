@@ -5,7 +5,7 @@
  *
  *  What it does
  *  ------------
- *  The ESP32-S3 joins the 2.4 GHz network named in wifi_credentials.h
+ *  The ESP32-S3 joins the 2.4 GHz router network stored on the board (NVS)
  *  (Lab 8 test router: ZTE MC888 Pro), then every 30 seconds asks a
  *  connectivity-check page whether the internet can be reached:
  *
@@ -41,8 +41,9 @@
  *    HTTP_RESULT code=<http code> ok=<0|1> millis=<duration>
  *    CHECK_END ok=<0|1>
  *
- *  Setup: copy include/wifi_credentials.example.h to
- *  include/wifi_credentials.h and enter the 2.4 GHz SSID and password.
+ *  Credentials: typed in once over Serial and stored in NVS, never in the
+ *  source or firmware. At boot, press 'c' in the serial monitor within 3 s
+ *  to open the setup menu. See include/lab8_credentials.h.
  * =============================================================================
  */
 
@@ -52,9 +53,8 @@
 #include <WiFi.h>
 #include <Wire.h>
 
-// Local-only SSID/password: KWifiSsid, KWifiPassword. Never committed
-// (listed in .gitignore). The build stops here if the file is missing.
-#include "wifi_credentials.h"
+// Credentials stored on the board (NVS) + Serial setup menu.
+#include "lab8_credentials.h"
 
 // -----------------------------------------------------------------------------
 //  Pin and hardware settings
@@ -77,15 +77,12 @@ const char* const KHostName = "lab8-esp32";
 // -----------------------------------------------------------------------------
 //  Internet check settings
 // -----------------------------------------------------------------------------
-//  The connectivity-check page returns 204 when the internet works. The ESP32
-//  does not need to parse the page, only check the HTTP status code.   
 const char* const KCheckUrl      = "http://connectivitycheck.gstatic.com/generate_204";
 const int         KExpectedCode  = 204;   // "No Content" = internet works
 
 // -----------------------------------------------------------------------------
 //  Timing settings
 // -----------------------------------------------------------------------------
-// How often to check the internet, how long to wait for Wi-Fi and HTTP.
 const uint32_t KCheckIntervalMillis      = 30000;  // Time between checks
 const uint32_t KWifiConnectTimeoutMillis = 20000;  // Give up joining after this
 const uint32_t KWifiPollMillis           = 250;    // How often to poll status
@@ -95,8 +92,9 @@ const uint32_t KLcdStepMillis            = 1500;   // How long the IP shows
 // -----------------------------------------------------------------------------
 //  Global state
 // -----------------------------------------------------------------------------
-// The LCD object. The constructor does not start I2C or the display.
 LiquidCrystal_PCF8574 lcd(KLcdAddress);
+
+lab8::Credentials credentials;     // Loaded from NVS in setup()
 
 uint32_t lastCheckMillis = 0;     // When the previous check finished
 bool     firstCheck      = true;  // Check immediately after boot
@@ -107,8 +105,6 @@ bool     firstCheck      = true;  // Check immediately after boot
 // =============================================================================
 
 // Clear the LCD and write up to two lines of text.
-// The second line is optional. Each line is truncated to 16 characters.
-// The LCD is cleared first, so the text appears in one step.
 void showOnLcd(const char* line1, const char* line2 = "") {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -135,8 +131,6 @@ void formatForLcd(const char* text, char* output) {
 // =============================================================================
 
 // Print every byte of the SSID as two hex digits ("Hi" -> "4869").
-// This is useful for debugging non-ASCII SSIDs, which are allowed by the
-// Wi-Fi standard but can be hard to see in Serial output. 
 void printSsidAsHex(const char* ssid) {
     for (size_t position = 0; ssid[position] != '\0'; ++position) {
         const uint8_t character = static_cast<uint8_t>(ssid[position]);
@@ -148,9 +142,7 @@ void printSsidAsHex(const char* ssid) {
 }
 
 // Print the SSID as quoted text. Non-printable characters and '"' become '?'
-// so the line format can never break. 
-//  "Hi" -> "Hi", "\x01\x02" -> "??"
-
+// so the line format can never break.
 void printSsidAsText(const char* ssid) {
     Serial.print('"');
     for (size_t position = 0; ssid[position] != '\0'; ++position) {
@@ -165,13 +157,6 @@ void printSsidAsText(const char* ssid) {
 // Translate the Wi-Fi connection status into a short readable name.
 //   NO_SSID_AVAIL  : network not found (wrong SSID, 5 GHz only, out of range)
 //   CONNECT_FAILED : usually a wrong password
-//  CONNECTION_LOST: Wi-Fi dropped after connecting (router reboot, etc.)
-//  DISCONNECTED   : Wi-Fi was connected but is now gone (router reboot, etc.)
-//  CONNECTED      : Wi-Fi is up and the ESP32 has an IP address
-//  SCAN_COMPLETED : Wi-Fi finished scanning for networks (not used here)
-//  IDLE           : Wi-Fi is idle (not used here)
-//  UNKNOWN        : any other status code (should not happen)
-    
 const char* getWifiStatusName(wl_status_t status) {
     switch (status) {
         case WL_IDLE_STATUS:     return "IDLE";
@@ -190,25 +175,29 @@ const char* getWifiStatusName(wl_status_t status) {
 //  Wi-Fi connection
 // =============================================================================
 
-// Join the network from wifi_credentials.h. Returns true when connected.
-// The SSID and password are never printed on Serial or the LCD.
-// The LCD shows the SSID while connecting, then either the host name + IP
-// or a failure reason. The Serial output shows the SSID in hex and text, then
-// either the Wi-Fi status code and name or the host name + IP. 
-
+// Join the router network stored in NVS. Returns true when connected.
 bool connectToWifi() {
+    // Nothing stored yet: tell the user how to fix it.
+    if (!credentials.hasRouter()) {
+        Serial.println("WIFI_CONNECT_FAIL status=-1 reason=NO_CREDENTIALS");
+        showOnLcd("No WiFi config", "Reset, press c");
+        return false;
+    }
+
+    const char* ssid = credentials.routerSsid.c_str();
+
     char ssidLine[KLcdColumns + 1];
-    formatForLcd(KWifiSsid, ssidLine);
+    formatForLcd(ssid, ssidLine);
     showOnLcd("Connecting WiFi", ssidLine);
 
     Serial.print("WIFI_CONNECT_BEGIN ssid_hex=");
-    printSsidAsHex(KWifiSsid);
+    printSsidAsHex(ssid);
     Serial.print(" ssid=");
-    printSsidAsText(KWifiSsid);
+    printSsidAsText(ssid);
     Serial.println();
 
     WiFi.disconnect();                    // Start from a clean state
-    WiFi.begin(KWifiSsid, KWifiPassword);
+    WiFi.begin(ssid, credentials.routerPassword.c_str());
 
     // Wait until connected or the timeout runs out.
     const uint32_t startMillis = millis();
@@ -235,11 +224,6 @@ bool connectToWifi() {
 }
 
 // Make sure Wi-Fi is up; reconnect if it dropped. Returns true when connected.
-//  The SSID and password are never printed on Serial or the LCD.
-//  The LCD shows the SSID while connecting, then either the host name + IP
-//  or a failure reason. The Serial output shows the SSID in hex and text,
-//  then either the Wi-Fi status code and name or the host name + IP.
-
 bool ensureWifiConnected() {
     if (WiFi.status() == WL_CONNECTED) {
         return true;
@@ -253,11 +237,6 @@ bool ensureWifiConnected() {
 //   gateway : the router's address (the way out to the internet)
 //   subnet  : which addresses count as "local", e.g. 255.255.255.0
 //   dns     : server that turns names like "gstatic.com" into IP addresses
-//   rssi    : signal strength in dBm (negative, closer to 0 is better)
-//   channel : which Wi-Fi channel the router is using (1..13 in 2.4 GHz)
-//  The LCD shows the host name and IP for KLcdStepMillis milliseconds, then
-//  the next step (internet check) overwrites it.
-
 void reportWifiStatus() {
     const String ip = WiFi.localIP().toString();
 
@@ -288,11 +267,6 @@ void reportWifiStatus() {
 // =============================================================================
 
 // Fetch the connectivity-check page. Returns true if it answered 204.
-// The LCD shows "Checking web..." while waiting, then either "Internet OK"
-// or "Internet FAIL" with the HTTP code and duration in milliseconds.
-//  The Serial output shows the URL, then either an error reason (code < 0)
-//  or the HTTP code, whether it was OK, and how long it took.
-
 bool checkInternet() {
     showOnLcd("Checking web...", "generate_204");
     Serial.print("HTTP_CHECK url=");
@@ -339,13 +313,6 @@ bool checkInternet() {
 
 // Connect if needed, then check the internet. Result stays on the LCD
 // until the next cycle.
-//  The Serial output shows the SSID in hex and text, then either the Wi-Fi
-//  status code and name or the host name + IP, then the URL, then either
-//  an error reason (code < 0) or the HTTP code, whether it was
-//  OK, and how long it took. Finally, a summary line shows whether the
-//  check cycle succeeded (Wi-Fi + internet) or failed. 
-//  The yellow LED is on while working, off when idle.
-
 void runCheckCycle() {
     digitalWrite(KPinStatusLed, HIGH);   // LED on: working
     Serial.println("CHECK_BEGIN");
@@ -369,13 +336,6 @@ void runCheckCycle() {
 //  Arduino entry points
 // =============================================================================
 
-//  The setup() function runs once after the ESP32 boots. It starts Serial,
-//  the LCD, and Wi-Fi. The first check cycle runs immediately after setup().
-//  The loop() function runs repeatedly, checking the internet every
-//  KCheckIntervalMillis milliseconds. The yellow LED is on while working,
-//  off when idle. The LCD shows the current status, and Serial shows a
-//  machine-readable log of the check cycles.
-
 void setup() {
     Serial.begin(115200);
 
@@ -388,6 +348,18 @@ void setup() {
     lcd.begin(KLcdColumns, KLcdRows);
     lcd.setBacklight(255);
     showOnLcd("Lab 8 WiFi web", "Starting...");
+
+    // Load credentials from NVS. Open the setup menu if none are stored,
+    // or if the user presses 'c' on Serial within 3 seconds.
+    credentials = lab8::loadCredentials();
+    lab8::printCredentialStatus(credentials);
+    showOnLcd("WiFi setup:", "send c on Serial");
+    if (!credentials.hasRouter() || lab8::setupRequested()) {
+        showOnLcd("WiFi setup", "see Serial");
+        lab8::runSetupMenu();
+        credentials = lab8::loadCredentials();
+        lab8::printCredentialStatus(credentials);
+    }
 
     // The host name must be set BEFORE Wi-Fi starts, or the router
     // sees the default name ("esp32s3-XXXXXX").

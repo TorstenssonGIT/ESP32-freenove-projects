@@ -34,15 +34,15 @@ for the local-only Wi-Fi credentials header.
 None. LCD and Serial output are the same as before from lab 7.
 
 ### Testing
-- [ ] Firmware builds
-- [ ] Flashed to ESP32-S3; LCD shows scan count and cycles networks
-- [ ] Serial shows `SCAN_BEGIN` / `SCAN_RESULT` / `AP ...` / `SCAN_END`
-- [ ] Python serial smoke-test passes (when Python + pyserial are available)
+- [x] Firmware builds
+- [X] Flashed to ESP32-S3; LCD shows scan count and cycles networks
+- [X] Serial shows `SCAN_BEGIN` / `SCAN_RESULT` / `AP ...` / `SCAN_END`
+- [X] Python serial smoke-test passes (when Python + pyserial are available)
 
 ### Security checklist
-- [ ] `include/wifi_credentials.h` is NOT staged (`git status`)
-- [ ] `include/wifi_credentials.h` is listed in `.gitignore`
-- [ ] No passwords, claim codes, or private network details in the diff
+- [X] `include/wifi_credentials.h` is NOT staged (`git status`)
+- [X] `include/wifi_credentials.h` is listed in `.gitignore`
+- [X] No passwords, claim codes, or private network details in the diff
 
 ---
 
@@ -60,13 +60,13 @@ Scan output on Serial now shows the SSID as text next to the hex form.
   - `ssid_hex` kept for reliable parsing.
 
 ### Testing
-- [ ] Firmware builds
-- [ ] Serial `AP` lines show readable SSIDs; hidden networks show `ssid=""`
-- [ ] LCD output unchanged
+- [X] Firmware builds
+- [X] Serial `AP` lines show readable SSIDs; hidden networks show `ssid=""`
+- [X] LCD output unchanged
 
 ### Security checklist
-- [ ] `include/wifi_credentials.h` is NOT staged (`git status`)
-- [ ] No passwords or private network details in the diff
+- [X] `include/wifi_credentials.h` is NOT staged (`git status`)
+- [X] No passwords or private network details in the diff
 
 ---
 
@@ -92,13 +92,13 @@ Close the serial monitor first, then:
 `python src/lab8_wifi_scan_smoke_test.py --port COM5`
 
 ### Testing
-- [ ] `pip install pyserial` done
-- [ ] Smoke-test prints PASS against the ESP32-S3
-- [ ] Summary matches the networks shown on the LCD
+- [X] `pip install pyserial` done
+- [X] Smoke-test prints PASS against the ESP32-S3
+- [X] Summary matches the networks shown on the LCD
 
 ### Security checklist
-- [ ] `include/wifi_credentials.h` is NOT staged (`git status`)
-- [ ] No passwords or private network details in the diff
+- [X] `include/wifi_credentials.h` is NOT staged (`git status`)
+- [X] No passwords or private network details in the diff
 
 ## 8.4 Connect to Wi-Fi and check internet access (feature 3)
 
@@ -120,19 +120,65 @@ checks internet access every 30 s against
   - Serial block per cycle: `CHECK_BEGIN` .. `CHECK_END ok=<0|1>`.
   - Password is never printed.
 - `src/lab8_wifi_connect_smoke_test.py` (new)
-  - Reads one cycle; checks host name, ip/gateway/dns (not 0.0.0.0),
+  - Reads one cycle (`CHECK_BEGIN` .. `CHECK_END`) from Serial.
+  -  checks host name `lab8-esp32`, ip/gateway/dns (not 0.0.0.0),
     gateway inside the subnet, RSSI, channel, HTTP 204 and `CHECK_END ok=1`.
 - `platformio.ini`: environment for `lab8_wifi_connect.cpp`.
 - `src/lab8_wifi.md`: feature 3 result recorded; 8.5 web status page added to the plan.
 
 ### Testing
-- [ ] Firmware builds and uploads
-- [ ] LCD shows `lab8-esp32` + IP, then "Internet OK" / "HTTP 204"
+- [X] Firmware builds and uploads
+- [X] LCD shows `lab8-esp32` + IP, then "Internet OK" / "HTTP 204"
 - [ ] `lab8-esp32` appears in the MC888 Pro client list
-- [ ] `python src\lab8_wifi_connect_smoke_test.py --port COM3` prints PASS
-- [ ] Router off or wrong password: LCD shows "WiFi FAIL" with a reason; recovers when fixed
+- [X] `python tests/lab8_wifi_connect_smoke_test.py --port COM3` prints PASS
+- [X] Router off: LCD shows "WiFi FAIL" with a reason; recovers when fixed. Wrong Password not checked.
 
 ### Security checklist
-- [ ] `include/wifi_credentials.h` is NOT staged (`git status`)
-- [ ] No passwords or private network details in the diff
+- [X] `include/wifi_credentials.h` is NOT staged (`git status`)
+- [X] No passwords or private network details in the diff
 
+## 8.4b Credentials stored on the board (NVS, XOR-obfuscated)
+
+**Branch:** `lab8/wifi-credentials-nvs-xor`
+
+### Summary
+Wi-Fi credentials move out of the source and firmware into the ESP32's NVS,
+entered once over Serial and stored XOR-obfuscated with a chip-specific
+keystream. Adds a security analysis (MD + PDF) and a security section to the
+Lab 8 plan.
+
+### Changes
+- `include/lab8_credentials.h` (new)
+  - Serial setup menu (press `c` within 3 s after reset): router network,
+    printer Wi-Fi Direct (SSID, password, IP, port), show, erase.
+  - Input validation: SSID 1-32, password 8-63, IPv4, port 1-65535.
+  - Passwords echo `*` and are never printed.
+  - Values stored as XOR-obfuscated bytes; keystream seeded from salt +
+    eFuse MAC + key name.
+  - `CRED_STATUS router=<0|1> printer=<0|1>` on Serial.
+- `src/lab8_wifi_connect.cpp` (new)
+  - Reads credentials from NVS instead of `wifi_credentials.h`.
+  - No stored router network: `WIFI_CONNECT_FAIL status=-1 reason=NO_CREDENTIALS`,
+    LCD "No WiFi config / Reset, press c".
+- `src/lab8_wifi_connect_smoke_test.py` (reused from 8.4)) 
+- `src/lab8_wifi_scan.cpp`: removed unused `#include "wifi_credentials.h"`.
+- `include/wifi_credentials.example.h`: removed (no longer used by any program).
+- `src/lab8_wifi_security_analysis.md` + `.pdf` (new): assets, threat actors,
+  protection layers, evolution levels 0-4, XOR obfuscation and its limits,
+  why MAC-XOR fails for transmission, print job analysis, AES/eFuse next
+  level, risk register, open issues.
+- `src/lab8_wifi.md`: credentials how-to and Security section.
+- `README.md`: credentials section points to the Serial setup.
+- `platformio.ini`: environment for `lab8_wifi_connect.cpp`.
+
+### Testing
+- [x] Firmware builds (connect and scan, without `wifi_credentials.h`)
+- [x] Credentials entered via the Serial menu are saved (`CRED_STATUS router=1 printer=1`)
+- [x] After reset (no `c`), board connects from NVS; smoke-test PASS on COM3
+- [x] Menu 3 shows SSIDs, passwords only as "(set, hidden)"
+- [ ] Menu 4 erases all credentials
+
+### Security checklist
+- [x] No passwords in the diff
+- [x] No passwords visible in the serial log
+- [x] `include/wifi_credentials.h` not staged
