@@ -39,11 +39,6 @@
 #include <WiFi.h>
 #include <Wire.h>
 
-// Local-only SSID/password (KWifiSsid, KWifiPassword). Not used by the scan,
-// which never joins a network; included so later Lab 8 steps share one
-// setup. Create it by copying include/wifi_credentials.example.h.
-// The build stops here if the file is missing - that is intentional.
-#include "wifi_credentials.h"
 
 // -----------------------------------------------------------------------------
 //  Pin and hardware settings
