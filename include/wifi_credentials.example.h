@@ -19,9 +19,16 @@
 // is uploaded to the ESP32-S3.
 
 #pragma once
+#include <stdint.h>
 
-// Name of the 2.4 GHz network the ESP32 should join.
-const char* const KWifiSsid = "YOUR_2G4_SSID";
+// Copy to include/wifi_credentials.h and fill in. Never commit that file.
 
-// Wi-Fi password for that network.
+// 2.4 GHz router network (features 1-3, web page).
+const char* const KWifiSsid     = "YOUR_2G4_SSID";
 const char* const KWifiPassword = "YOUR_WIFI_PASSWORD";
+
+// Printer Wi-Fi Direct (feature 4, printing).
+const char* const KPrinterWifiSsid     = "DIRECT-XX-HP OfficeJet 8010";
+const char* const KPrinterWifiPassword = "YOUR_PRINTER_WIFI_DIRECT_PASSWORD";
+const char* const KPrinterIp           = "192.168.223.1";
+const uint16_t    KPrinterPort         = 9100;

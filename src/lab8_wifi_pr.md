@@ -99,3 +99,40 @@ Close the serial monitor first, then:
 ### Security checklist
 - [ ] `include/wifi_credentials.h` is NOT staged (`git status`)
 - [ ] No passwords or private network details in the diff
+
+## 8.4 Connect to Wi-Fi and check internet access (feature 3)
+
+**Branch:** `lab8/wifi-connect-internet-check`
+
+### Summary
+New program that joins the 2.4 GHz network from `wifi_credentials.h` and
+checks internet access every 30 s against
+`http://connectivitycheck.gstatic.com/generate_204`, plus a Python smoke-test.
+
+### Changes
+- `src/lab8_wifi_connect.cpp` (new)
+  - Host name `lab8-esp32` (set before Wi-Fi starts; shows in the router's client list).
+  - Joins the configured network (20 s timeout); reconnects if Wi-Fi drops.
+  - Readable failure reason on Serial and LCD (`NO_SSID_AVAIL`, `CONNECT_FAILED`, ...).
+  - HTTP GET with 5 s timeout; `204` = internet OK.
+  - LCD: Connecting WiFi -> host name + IP -> Internet OK/FAIL + HTTP code and time.
+  - `WIFI_STATUS` reports hostname, ip, gateway, subnet, dns, rssi, channel.
+  - Serial block per cycle: `CHECK_BEGIN` .. `CHECK_END ok=<0|1>`.
+  - Password is never printed.
+- `src/lab8_wifi_connect_smoke_test.py` (new)
+  - Reads one cycle; checks host name, ip/gateway/dns (not 0.0.0.0),
+    gateway inside the subnet, RSSI, channel, HTTP 204 and `CHECK_END ok=1`.
+- `platformio.ini`: environment for `lab8_wifi_connect.cpp`.
+- `src/lab8_wifi.md`: feature 3 result recorded; 8.5 web status page added to the plan.
+
+### Testing
+- [ ] Firmware builds and uploads
+- [ ] LCD shows `lab8-esp32` + IP, then "Internet OK" / "HTTP 204"
+- [ ] `lab8-esp32` appears in the MC888 Pro client list
+- [ ] `python src\lab8_wifi_connect_smoke_test.py --port COM3` prints PASS
+- [ ] Router off or wrong password: LCD shows "WiFi FAIL" with a reason; recovers when fixed
+
+### Security checklist
+- [ ] `include/wifi_credentials.h` is NOT staged (`git status`)
+- [ ] No passwords or private network details in the diff
+
