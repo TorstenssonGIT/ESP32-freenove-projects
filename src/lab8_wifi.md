@@ -25,12 +25,15 @@ list with the devices that were deliberately connected.
 
 | # | Feature | Planned result | Status |
 |---|---|---|---|
-| 1 | Scan nearby 2.4 GHz Wi-Fi networks | Show scan status/count on the LCD, then cycle through each SSID (up to 16 characters), RSSI, and channel; list full details and security mode on Serial, clearly identifying open networks. Do not automatically join discovered networks. | Board tested; found 12 nearby networks before the MC888 Pro was powered on |
+| 1 | Scan nearby 2.4 GHz Wi-Fi networks | Show scan status/count on the LCD, then cycle through each SSID (up to 16 characters), RSSI, and channel; list full details and security mode on Serial, clearly identifying open networks. Do not automatically join discovered networks. | Done. 8.1: readable code + credentials template. 8.2: readable SSID on Serial. Board tested: 12 networks (MC888 Pro off), later 19. |
+| 1b | Python smoke-test for the scan | `lab8_wifi_scan_smoke_test.py` reads one scan from Serial and validates counts, SSID, RSSI, channel and auth mode; lists open networks. | Done (8.3): PASS on COM3, 22 networks, 2 open. |
 | 2 | List and classify clients on an authorized network | Use an appropriate, authorized source for the network's client list. Do not attempt to access devices or networks without permission. | Planned |
-| 3 | Connect to an internet webpage | Connect only to the user's configured or otherwise authorized Wi-Fi network and report whether an internet page can be reached. | Planned |
+| 3 | Connect to an internet webpage | Join the configured 2.4 GHz network as host name `lab8-esp32`; report IP, gateway, subnet and DNS on Serial and name + IP on the LCD; check `http://connectivitycheck.gstatic.com/generate_204` (HTTP 204 = internet OK) every 30 s. | Done (8.4): connected as `lab8-esp32` (192.168.32.6, DNS 192.168.32.1), HTTP 204 in ~300 ms; smoke-test PASS on COM3. |
+| 3b | Web status page on the ESP32 | Serve `http://<esp-ip>/` and `http://lab8-esp32.local/` with the latest scan result and connection/internet status (hostname, IP, gateway, subnet, DNS, HTTP result); `/api/status` returns JSON for the Python smoke-test. Feature 6 later adds the LCD text form to this same server. | Planned (8.5) |
 | 4 | Print a test page on the HP printer over Wi-Fi | Target printer: HP OfficeJet 8010 series. Investigate direct printing over the local network. First test reachability from WSL with `nc`; then identify and test a supported print protocol. | Planned |
 | 5 | Run a Wi-Fi bandwidth test | Use a controlled endpoint and a bounded test; show the result/status on the LCD. | Planned |
 | 6 | Browse to the ESP32 and type text for the LCD | Serve a basic page from the ESP32; submitted text is shown on the existing LCD. This is a simple browser page, not a phone app. | Planned |
+| 7 | Wi-Fi presence detector | Detect presence from changes in Wi-Fi signal strength, using a motor-turned improvised reflector. Details to be agreed. | Planned |
 
 ## Build and test approach
 
@@ -83,3 +86,5 @@ required for the initial Wi-Fi scan.
 - Commit the exercise source and tests after they pass. Keep Wi-Fi passwords,
   printer claim codes, account credentials, and other private network details
   local; never commit them.
+  - mDNS (`lab8-esp32.local`) may be blocked by some routers or guest
+  networks; the IP shown on the LCD is the fallback address.
