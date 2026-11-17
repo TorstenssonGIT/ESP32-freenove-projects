@@ -182,3 +182,30 @@ Lab 8 plan.
 - [x] No passwords in the diff
 - [x] No passwords visible in the serial log
 - [x] `include/wifi_credentials.h` not staged
+
+## 8.x Wiring and block diagrams
+
+**Branch:** `lab8/diagrams`
+
+### Summary
+Adds a wiring diagram and one block diagram per Lab 8 step as SVG files,
+shown directly on GitHub, plus a Diagrams section in the plan.
+
+### Changes
+- `src/lab8_wiring.svg` (new): LCD (I2C GPIO 1/2, 5V, GND), LED on GPIO 13
+  via resistor, USB-C to PC; board B for 8.6 without wiring.
+- `src/lab8_block_hardware.svg` (new): ESP32-S3 internal blocks (CPU,
+  flash/NVS, PSRAM, eFuse, timer, USB/UART, I2C, GPIO, Wi-Fi radio) and the
+  connected hardware and network devices per interface.
+- `src/lab8_block_overview.svg` (new): all steps, router, internet, printer.
+- `src/lab8_block_8_1_scan.svg`, `..._8_4_connect.svg`,
+  `..._8_4b_credentials.svg`, `..._8_5_web.svg` (new): implemented steps.
+- `src/lab8_block_8_6_bandwidth.svg`, `..._8_7_print.svg` (new): planned steps.
+- `src/lab8_wifi.md`: Diagrams section.
+
+### Testing
+- [ ] All SVGs render on GitHub
+- [ ] Wiring diagram matches the board (VCC, resistor value)
+
+### Security checklist
+- [ ] No passwords or private network details in the diagrams

@@ -73,10 +73,37 @@ may be active. When a change touches several programs, build each one.
   - I2C address: `0x27`
 - Existing yellow LED: GPIO 13.
 
+![Lab 8 wiring](lab8_wiring.svg)
+
+![Lab 8 hardware block diagram](lab8_block_hardware.svg)
+
 Keep the LCD wiring unchanged. NEXT and OK buttons are intended for stepping
 through tests and confirming selections; select safe, unused GPIO pins before
 adding button wiring. The photoresistor on GPIO 4 is part of Lab 6B and is not
 required for the initial Wi-Fi scan.
+
+## Diagrams
+
+Wiring (same for all Lab 8 steps; board B for 8.6 has no wiring):
+
+![Lab 8 wiring](lab8_wiring.svg)
+
+Hardware blocks (ESP32-S3 internals and what is connected to each):
+
+![Lab 8 hardware block diagram](lab8_block_hardware.svg)
+
+Overview of the steps:
+
+![Lab 8 overview](lab8_block_overview.svg)
+
+| Step | Block diagram |
+|---|---|
+| 8.1–8.3 Scan | [lab8_block_8_1_scan.svg](lab8_block_8_1_scan.svg) |
+| 8.4 Connect + internet check | [lab8_block_8_4_connect.svg](lab8_block_8_4_connect.svg) |
+| 8.4b Credentials in NVS | [lab8_block_8_4b_credentials.svg](lab8_block_8_4b_credentials.svg) |
+| 8.5 Web status page | [lab8_block_8_5_web.svg](lab8_block_8_5_web.svg) |
+| 8.6 Bandwidth test (planned) | [lab8_block_8_6_bandwidth.svg](lab8_block_8_6_bandwidth.svg) |
+| 8.7 Print report (planned) | [lab8_block_8_7_print.svg](lab8_block_8_7_print.svg) |
 
 ## How Wi-Fi credentials work
 
