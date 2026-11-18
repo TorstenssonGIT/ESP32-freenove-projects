@@ -228,9 +228,9 @@ the security decisions.
 - [x] Page opens at `http://lab8-esp32.local/` (or note if mDNS is not resolved)
 - [x] `python tests/lab8_wifi_web_status_smoke_test.py --host <ip>` prints PASS, with `LAB8_WIFI_PASSWORD` set (192.168.32.2, 2026-11-18)
 - [x] Serial shows `NTP_SYNC ok=1` with correct local time
-- [ ] 8.4 smoke-test still PASS with this firmware
+- [X] 8.4 smoke-test still PASS with this firmware (HTTP 204 in 82 ms)
 - [x] Block diagram updated (`src/lab8_block_8_5_web.svg`)
-- [ ] Router off/on: reconnect count increases, page works again
+- [X] Router off/on: connection lost (scan found 0 networks), reconnected by itself on attempt 7; page works again by IP and lab8-esp32.local
 
 ### Security checklist
 - [x] No passwords in the diff
