@@ -21,6 +21,7 @@
 <text x="470.0" y="176" font-size="11.5" text-anchor="middle" fill="#344054">other subnets → 403</text>
 <text x="470.0" y="192" font-size="11.5" text-anchor="middle" fill="#344054">SSIDs HTML/JSON-escaped</text>
 <text x="470.0" y="208" font-size="11.5" text-anchor="middle" fill="#344054">CSP: no scripts</text>
+<text x="470.0" y="224" font-size="11.5" text-anchor="middle" fill="#344054">connect timing, local time</text>
 <polyline points="240,150 330,150" fill="none" stroke="#344054" stroke-width="1.8" marker-start="url(#arr)" marker-end="url(#arr)"/>
 <text x="285.0" y="143.0" font-size="11.5" text-anchor="middle" fill="#344054">HTTP GET</text>
 <rect x="700" y="70" width="200" height="80" rx="8" fill="#e8f6ec" stroke="#2f7d4a" stroke-width="1.6"/>
@@ -28,9 +29,9 @@
 <text x="800.0" y="112" font-size="11.5" text-anchor="middle" fill="#344054">every 60 s, async</text>
 <text x="800.0" y="128" font-size="11.5" text-anchor="middle" fill="#344054">stays connected</text>
 <rect x="700" y="170" width="200" height="80" rx="8" fill="#eef6fb" stroke="#3d7ea6" stroke-width="1.6"/>
-<text x="800.0" y="192" font-size="14" font-weight="bold" text-anchor="middle" fill="#3d7ea6">Internet check</text>
-<text x="800.0" y="212" font-size="11.5" text-anchor="middle" fill="#344054">every 30 s (as 8.4)</text>
-<text x="800.0" y="228" font-size="11.5" text-anchor="middle" fill="#344054">+ connect timing</text>
+<text x="800.0" y="192" font-size="14" font-weight="bold" text-anchor="middle" fill="#3d7ea6">Internet + clock</text>
+<text x="800.0" y="212" font-size="11.5" text-anchor="middle" fill="#344054">check every 30 s (as 8.4)</text>
+<text x="800.0" y="228" font-size="11.5" text-anchor="middle" fill="#344054">NTP: se.pool.ntp.org</text>
 <polyline points="610,110 700,110" fill="none" stroke="#344054" stroke-width="1.8" marker-end="url(#arr)"/>
 <polyline points="610,210 700,210" fill="none" stroke="#344054" stroke-width="1.8" marker-end="url(#arr)"/>
 <rect x="20" y="260" width="220" height="70" rx="8" fill="#f1ecfb" stroke="#6a4fb0" stroke-width="1.6"/>
