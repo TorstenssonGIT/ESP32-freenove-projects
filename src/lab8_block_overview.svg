@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="440" viewBox="0 0 900 440" font-family="DejaVu Sans, Arial, Helvetica, sans-serif">
+<title>Lab 8 – overview of steps</title>
+<defs>
+ <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#344054"/></marker>
+ <marker id="arrRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b42318"/></marker>
+</defs>
+<rect width="900" height="440" fill="#ffffff"/>
+<text x="20" y="32" font-size="19" font-weight="bold" fill="#17324d">Lab 8 – overview of steps</text>
+<text x="20" y="54" font-size="12.5" fill="#475467">Dashed = planned</text>
+<rect x="20" y="80" width="260" height="70" rx="8" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.6"/>
+<text x="150.0" y="102" font-size="14" font-weight="bold" text-anchor="middle" fill="#2b5a8a">8.1–8.3 Scan</text>
+<text x="150.0" y="122" font-size="11.5" text-anchor="middle" fill="#344054">listen only, LCD + Serial + test</text>
+<rect x="20" y="165" width="260" height="70" rx="8" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.6"/>
+<text x="150.0" y="187" font-size="14" font-weight="bold" text-anchor="middle" fill="#2b5a8a">8.4 Connect + internet</text>
+<text x="150.0" y="207" font-size="11.5" text-anchor="middle" fill="#344054">lab8-esp32, DNS, HTTP 204</text>
+<rect x="20" y="250" width="260" height="70" rx="8" fill="#fdf1e3" stroke="#b26a12" stroke-width="1.6"/>
+<text x="150.0" y="272" font-size="14" font-weight="bold" text-anchor="middle" fill="#b26a12">8.4b Credentials in NVS</text>
+<text x="150.0" y="292" font-size="11.5" text-anchor="middle" fill="#344054">Serial menu, XOR, no files</text>
+<rect x="20" y="335" width="260" height="70" rx="8" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.6"/>
+<text x="150.0" y="357" font-size="14" font-weight="bold" text-anchor="middle" fill="#2b5a8a">8.5 Web status page</text>
+<text x="150.0" y="377" font-size="11.5" text-anchor="middle" fill="#344054">local network only, JSON</text>
+<rect x="330" y="80" width="260" height="70" rx="8" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="460.0" y="102" font-size="14" font-weight="bold" text-anchor="middle" fill="#2b5a8a">8.6 Bandwidth test (planned)</text>
+<text x="460.0" y="122" font-size="11.5" text-anchor="middle" fill="#344054">controller ↔ echo server, UDP</text>
+<rect x="330" y="165" width="260" height="70" rx="8" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="460.0" y="187" font-size="14" font-weight="bold" text-anchor="middle" fill="#2b5a8a">8.7 Print report (planned)</text>
+<text x="460.0" y="207" font-size="11.5" text-anchor="middle" fill="#344054">Wi-Fi Direct, port 9100</text>
+<rect x="330" y="250" width="260" height="70" rx="8" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="460.0" y="272" font-size="14" font-weight="bold" text-anchor="middle" fill="#2b5a8a">Feature 2, 6, 7 (planned)</text>
+<text x="460.0" y="292" font-size="11.5" text-anchor="middle" fill="#344054">clients, LCD text form, presence</text>
+<rect x="330" y="335" width="260" height="70" rx="8" fill="#fffbea" stroke="#b8a03a" stroke-width="1.6"/>
+<text x="460.0" y="357" font-size="14" font-weight="bold" text-anchor="middle" fill="#b8a03a">Security analysis</text>
+<text x="460.0" y="377" font-size="11.5" text-anchor="middle" fill="#344054">MD + PDF, risk register</text>
+<rect x="640" y="80" width="230" height="90" rx="8" fill="#e8f6ec" stroke="#2f7d4a" stroke-width="1.6"/>
+<text x="755.0" y="102" font-size="13" font-weight="bold" text-anchor="middle" fill="#2f7d4a">MC888 5G internet router</text>
+<text x="755.0" y="122" font-size="11.5" text-anchor="middle" fill="#344054">2.4 GHz WPA2</text>
+<text x="755.0" y="138" font-size="11.5" text-anchor="middle" fill="#344054">192.168.32.0/24</text>
+<rect x="640" y="190" width="230" height="70" rx="8" fill="#eef6fb" stroke="#3d7ea6" stroke-width="1.6"/>
+<text x="755.0" y="212" font-size="14" font-weight="bold" text-anchor="middle" fill="#3d7ea6">Internet (5G)</text>
+<text x="755.0" y="232" font-size="11.5" text-anchor="middle" fill="#344054">outgoing only</text>
+<rect x="640" y="280" width="230" height="70" rx="8" fill="#f2f4f7" stroke="#667085" stroke-width="1.6"/>
+<text x="755.0" y="302" font-size="14" font-weight="bold" text-anchor="middle" fill="#667085">HP OfficeJet 8010</text>
+<text x="755.0" y="322" font-size="11.5" text-anchor="middle" fill="#344054">own Wi-Fi Direct network</text>
+<polyline points="755,170 755,190" fill="none" stroke="#344054" stroke-width="1.8" marker-start="url(#arr)" marker-end="url(#arr)"/>
+<rect x="640" y="370" width="16" height="12" rx="3" fill="#e7f0fb" stroke="#2b5a8a"/>
+<text x="664" y="380" font-size="11" text-anchor="start" fill="#344054">ESP32 program</text>
+<rect x="640" y="390" width="16" height="12" rx="3" fill="#fdf1e3" stroke="#b26a12"/>
+<text x="664" y="400" font-size="11" text-anchor="start" fill="#344054">stored data</text>
+<rect x="640" y="410" width="16" height="12" rx="3" fill="#e8f6ec" stroke="#2f7d4a"/>
+<text x="664" y="420" font-size="11" text-anchor="start" fill="#344054">network</text>
+</svg>

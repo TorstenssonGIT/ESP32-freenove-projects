@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="430" viewBox="0 0 900 430" font-family="DejaVu Sans, Arial, Helvetica, sans-serif">
+<title>Lab 8.4 – connect and internet check</title>
+<defs>
+ <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#344054"/></marker>
+ <marker id="arrRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b42318"/></marker>
+</defs>
+<rect width="900" height="430" fill="#ffffff"/>
+<text x="20" y="32" font-size="19" font-weight="bold" fill="#17324d">Lab 8.4 – connect and internet check</text>
+<rect x="20" y="80" width="200" height="90" rx="8" fill="#fdf1e3" stroke="#b26a12" stroke-width="1.6"/>
+<text x="120.0" y="102" font-size="14" font-weight="bold" text-anchor="middle" fill="#b26a12">NVS (board flash)</text>
+<text x="120.0" y="122" font-size="11.5" text-anchor="middle" fill="#344054">router SSID + password</text>
+<text x="120.0" y="138" font-size="11.5" text-anchor="middle" fill="#344054">XOR-obfuscated (8.4b)</text>
+<rect x="300" y="70" width="250" height="140" rx="8" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.6"/>
+<text x="425.0" y="92" font-size="14" font-weight="bold" text-anchor="middle" fill="#2b5a8a">ESP32-S3 – lab8_wifi_connect</text>
+<text x="425.0" y="112" font-size="11.5" text-anchor="middle" fill="#344054">host name lab8-esp32</text>
+<text x="425.0" y="128" font-size="11.5" text-anchor="middle" fill="#344054">join, reconnect if dropped</text>
+<text x="425.0" y="144" font-size="11.5" text-anchor="middle" fill="#344054">check internet every 30 s</text>
+<text x="425.0" y="160" font-size="11.5" text-anchor="middle" fill="#344054">HTTP GET, expect 204</text>
+<polyline points="220,125 300,125" fill="none" stroke="#344054" stroke-width="1.8" marker-end="url(#arr)"/>
+<text x="260.0" y="118.0" font-size="11.5" text-anchor="middle" fill="#344054">load at boot</text>
+<rect x="640" y="70" width="220" height="110" rx="8" fill="#e8f6ec" stroke="#2f7d4a" stroke-width="1.6"/>
+<text x="750.0" y="92" font-size="13" font-weight="bold" text-anchor="middle" fill="#2f7d4a">MC888 5G internet router</text>
+<text x="750.0" y="112" font-size="11.5" text-anchor="middle" fill="#344054">2.4 GHz, WPA2</text>
+<text x="750.0" y="128" font-size="11.5" text-anchor="middle" fill="#344054">DHCP: IP, gateway, DNS</text>
+<text x="750.0" y="144" font-size="11.5" text-anchor="middle" fill="#344054">192.168.32.1</text>
+<polyline points="550,120 640,120" fill="none" stroke="#344054" stroke-width="1.8" marker-start="url(#arr)" marker-end="url(#arr)"/>
+<text x="595.0" y="113.0" font-size="11.5" text-anchor="middle" fill="#344054">Wi-Fi</text>
+<rect x="640" y="230" width="220" height="90" rx="8" fill="#eef6fb" stroke="#3d7ea6" stroke-width="1.6"/>
+<text x="750.0" y="252" font-size="14" font-weight="bold" text-anchor="middle" fill="#3d7ea6">Internet (5G, Telia)</text>
+<text x="750.0" y="272" font-size="11.5" text-anchor="middle" fill="#344054">connectivitycheck.</text>
+<text x="750.0" y="288" font-size="11.5" text-anchor="middle" fill="#344054">gstatic.com/generate_204</text>
+<polyline points="750,180 750,230" fill="none" stroke="#344054" stroke-width="1.8" marker-start="url(#arr)" marker-end="url(#arr)"/>
+<text x="760" y="210" font-size="11.5" text-anchor="start" fill="#344054">DNS + HTTP</text>
+<rect x="300" y="250" width="120" height="60" rx="8" fill="#f2f4f7" stroke="#667085" stroke-width="1.6"/>
+<text x="360.0" y="272" font-size="14" font-weight="bold" text-anchor="middle" fill="#667085">LCD</text>
+<text x="360.0" y="292" font-size="11.5" text-anchor="middle" fill="#344054">name + IP, result</text>
+<rect x="440" y="250" width="150" height="60" rx="8" fill="#f1ecfb" stroke="#6a4fb0" stroke-width="1.6"/>
+<text x="515.0" y="272" font-size="14" font-weight="bold" text-anchor="middle" fill="#6a4fb0">Serial</text>
+<text x="515.0" y="292" font-size="11.5" text-anchor="middle" fill="#344054">CHECK_BEGIN … END</text>
+<polyline points="360,210 360,250" fill="none" stroke="#344054" stroke-width="1.8" marker-end="url(#arr)"/>
+<polyline points="515,210 515,250" fill="none" stroke="#344054" stroke-width="1.8" marker-end="url(#arr)"/>
+<rect x="400" y="345" width="240" height="60" rx="8" fill="#f1ecfb" stroke="#6a4fb0" stroke-width="1.6"/>
+<text x="520.0" y="367" font-size="14" font-weight="bold" text-anchor="middle" fill="#6a4fb0">PC: smoke-test</text>
+<text x="520.0" y="387" font-size="11.5" text-anchor="middle" fill="#344054">lab8_wifi_connect_smoke_test.py</text>
+<polyline points="515,310 515,345" fill="none" stroke="#344054" stroke-width="1.8" marker-end="url(#arr)"/>
+</svg>
