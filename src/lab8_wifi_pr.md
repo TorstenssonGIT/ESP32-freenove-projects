@@ -182,3 +182,56 @@ Lab 8 plan.
 - [x] No passwords in the diff
 - [x] No passwords visible in the serial log
 - [x] `include/wifi_credentials.h` not staged
+
+## 8.5 Web status page on the ESP32
+
+**Branch:** `lab8/wifi-web-status-page`
+
+### Summary
+New program that serves a read-only status page on the local network:
+connection details, internet check, a background scan of nearby networks, and
+connection timing. Same data as JSON for a Python smoke-test that also checks
+the security decisions.
+
+### Changes
+- `src/lab8_wifi_web_status.cpp` (new)
+  - Credentials from NVS (8.4b), host name `lab8-esp32`, mDNS
+    `http://lab8-esp32.local/`.
+  - `GET /` HTML page (refreshes every 15 s), `GET /api/status` JSON.
+  - Internet check every 30 s (8.4 serial protocol unchanged, so the 8.4
+    smoke-test still passes); background scan every 60 s without
+    disconnecting and without blocking the web server.
+  - Clock: NTP (`se.pool.ntp.org`, `pool.ntp.org`) with the Europe/Stockholm
+    rule (CET/CEST); local time on the page and in JSON (`ntp_synced`,
+    `epoch`, `local_time`); `NTP_SYNC` on Serial once set.
+  - Timing: connect time, connect attempts, reconnections, uptime
+    (`WIFI_CONNECTED`, `WIFI_STATS` on Serial; also on the page and in JSON).
+  - LCD: "Internet OK/FAIL" + the IP address to browse to.
+  - Security: read-only (non-GET -> 405), local subnet only (403 otherwise),
+    no password fields, every SSID HTML/JSON-escaped (SSIDs are chosen by
+    strangers and could contain `<script>`), no JavaScript, security headers
+    (CSP `default-src 'none'`, `nosniff`, `no-store`, `DENY` framing).
+- `tests/lab8_wifi_web_status_smoke_test.py` (new)
+  - Over the network (`--host`), no serial port needed.
+  - Validates JSON values, scan entries (`ssid` matches `ssid_hex`), HTML page.
+  - Clock: NTP synced, within 2 minutes of the PC's clock, CET/CEST.
+  - Security: no password-like fields; password from `LAB8_WIFI_PASSWORD`
+    absent from JSON and HTML; no `<script>`; headers present; POST -> 405;
+    unknown path -> 404.
+- `src/lab8_block_8_5_web.svg` (new): block diagram for this step.
+- `src/lab8_wifi.md`: row 3b status, 8.5 paragraph, two new risks (malicious SSID, NTP spoofing).
+- `tests/lab8_wifi_scan_smoke_test.py`: moved from `src/` (repo convention: tests in `tests/`).
+
+### Testing
+- [x] Firmware builds and uploads
+- [x] Page opens at `http://<ip>/` from a PC on the MC888 network
+- [x] Page opens at `http://lab8-esp32.local/` (or note if mDNS is not resolved)
+- [x] `python tests/lab8_wifi_web_status_smoke_test.py --host <ip>` prints PASS, with `LAB8_WIFI_PASSWORD` set (192.168.32.2, 2026-11-18)
+- [x] Serial shows `NTP_SYNC ok=1` with correct local time
+- [ ] 8.4 smoke-test still PASS with this firmware
+- [x] Block diagram updated (`src/lab8_block_8_5_web.svg`)
+- [ ] Router off/on: reconnect count increases, page works again
+
+### Security checklist
+- [x] No passwords in the diff
+- [x] Page shows no passwords; smoke-test password check done
