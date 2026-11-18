@@ -129,7 +129,7 @@ checks internet access every 30 s against
 ### Testing
 - [X] Firmware builds and uploads
 - [X] LCD shows `lab8-esp32` + IP, then "Internet OK" / "HTTP 204"
-- [ ] `lab8-esp32` appears in the MC888 Pro client list
+- [X] `lab8-esp32` appears in the MC888 Pro client list
 - [X] `python tests/lab8_wifi_connect_smoke_test.py --port COM3` prints PASS
 - [X] Router off: LCD shows "WiFi FAIL" with a reason; recovers when fixed. Wrong Password not checked.
 
