@@ -64,6 +64,15 @@ Smoke-tests are run from the PlatformIO Core CLI terminal (its Python includes
 `platformio.ini` selects the program with `build_src_filter`; only one line
 may be active. When a change touches several programs, build each one.
 
+Feature 3b (8.5) is implemented in `lab8_wifi_web_status.cpp`. The page is
+served at `http://<ip>/` and `http://lab8-esp32.local/`, with JSON at
+`/api/status`. It is read-only (other methods give 405) and only answers the
+local subnet (others give 403). SSIDs are HTML/JSON-escaped and the page has
+no JavaScript. It shows connect time, reconnects, uptime and the local time
+from NTP (CET/CEST). The web smoke-test runs over the network instead of
+Serial, e.g.
+`python tests/lab8_wifi_web_status_smoke_test.py --host lab8-esp32.local`.
+
 ## Existing hardware to reuse
 
 - ESP32-S3 board with built-in 2.4 GHz Wi-Fi.
@@ -200,6 +209,8 @@ poorly with PlatformIO's Arduino setup and can brick the board if done wrong.
 | DNS lookups, server name, IP/MAC, timing visible | Cannot be hidden in normal networking | Accepted: reveals only which server is contacted |
 | ESP32 web page (8.5) over plain HTTP | Read-only, shows no secrets; smoke-test asserts no password in output | Accepted on own WPA2 network |
 | Print job (8.6) unencrypted on port 9100 | Purpose is a readable paper copy, so encrypting the path protects nothing; content is broadcast SSIDs; only printer + ESP32 on the WPA2 Wi-Fi Direct network; report never contains credentials | Accepted |
+| Malicious SSID (e.g. containing `<script>`) shown on the web page | Every SSID HTML/JSON-escaped; no JavaScript; CSP blocks scripts; smoke-test checks for `<script>` | Fixed |
+| NTP time can be spoofed on the network (NTP is unauthenticated) | Only affects displayed time and log timestamps; matters for HTTPS certificate dates later (I-1) | Accepted |
 
 Wi-Fi itself is protected by WPA2/WPA3 on the radio link; TLS protects
 connections to the internet; neither protects data stored on the board.
