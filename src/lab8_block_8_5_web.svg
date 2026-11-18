@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="410" viewBox="0 0 920 410" font-family="DejaVu Sans, Arial, Helvetica, sans-serif">
+<title>Lab 8.5 – web status page (local network only)</title>
+<defs>
+ <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#344054"/></marker>
+ <marker id="arrRed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b42318"/></marker>
+</defs>
+<rect width="920" height="410" fill="#ffffff"/>
+<text x="20" y="32" font-size="19" font-weight="bold" fill="#17324d">Lab 8.5 – web status page (local network only)</text>
+<rect x="20" y="90" width="220" height="120" rx="8" fill="#f1ecfb" stroke="#6a4fb0" stroke-width="1.6"/>
+<text x="130.0" y="112" font-size="14" font-weight="bold" text-anchor="middle" fill="#6a4fb0">Browser on the LAN</text>
+<text x="130.0" y="132" font-size="11.5" text-anchor="middle" fill="#344054">PC or phone on the</text>
+<text x="130.0" y="148" font-size="11.5" text-anchor="middle" fill="#344054">MC888 network</text>
+<text x="130.0" y="164" font-size="11.5" text-anchor="middle" fill="#344054">http://&lt;ip&gt;/</text>
+<text x="130.0" y="180" font-size="11.5" text-anchor="middle" fill="#344054">http://lab8-esp32.local/</text>
+<rect x="330" y="70" width="280" height="190" rx="8" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.6"/>
+<text x="470.0" y="92" font-size="14" font-weight="bold" text-anchor="middle" fill="#2b5a8a">ESP32-S3 – lab8_wifi_web_status</text>
+<text x="470.0" y="112" font-size="11.5" text-anchor="middle" fill="#344054">WebServer port 80 (read-only)</text>
+<text x="470.0" y="128" font-size="11.5" text-anchor="middle" fill="#344054">GET /  → HTML, refresh 15 s</text>
+<text x="470.0" y="144" font-size="11.5" text-anchor="middle" fill="#344054">GET /api/status → JSON</text>
+<text x="470.0" y="160" font-size="11.5" text-anchor="middle" fill="#344054">other methods → 405</text>
+<text x="470.0" y="176" font-size="11.5" text-anchor="middle" fill="#344054">other subnets → 403</text>
+<text x="470.0" y="192" font-size="11.5" text-anchor="middle" fill="#344054">SSIDs HTML/JSON-escaped</text>
+<text x="470.0" y="208" font-size="11.5" text-anchor="middle" fill="#344054">CSP: no scripts</text>
+<text x="470.0" y="224" font-size="11.5" text-anchor="middle" fill="#344054">connect timing, local time</text>
+<polyline points="240,150 330,150" fill="none" stroke="#344054" stroke-width="1.8" marker-start="url(#arr)" marker-end="url(#arr)"/>
+<text x="285.0" y="143.0" font-size="11.5" text-anchor="middle" fill="#344054">HTTP GET</text>
+<rect x="700" y="70" width="200" height="80" rx="8" fill="#e8f6ec" stroke="#2f7d4a" stroke-width="1.6"/>
+<text x="800.0" y="92" font-size="14" font-weight="bold" text-anchor="middle" fill="#2f7d4a">Background scan</text>
+<text x="800.0" y="112" font-size="11.5" text-anchor="middle" fill="#344054">every 60 s, async</text>
+<text x="800.0" y="128" font-size="11.5" text-anchor="middle" fill="#344054">stays connected</text>
+<rect x="700" y="170" width="200" height="80" rx="8" fill="#eef6fb" stroke="#3d7ea6" stroke-width="1.6"/>
+<text x="800.0" y="192" font-size="14" font-weight="bold" text-anchor="middle" fill="#3d7ea6">Internet + clock</text>
+<text x="800.0" y="212" font-size="11.5" text-anchor="middle" fill="#344054">check every 30 s (as 8.4)</text>
+<text x="800.0" y="228" font-size="11.5" text-anchor="middle" fill="#344054">NTP: se.pool.ntp.org</text>
+<polyline points="610,110 700,110" fill="none" stroke="#344054" stroke-width="1.8" marker-end="url(#arr)"/>
+<polyline points="610,210 700,210" fill="none" stroke="#344054" stroke-width="1.8" marker-end="url(#arr)"/>
+<rect x="20" y="260" width="220" height="70" rx="8" fill="#f1ecfb" stroke="#6a4fb0" stroke-width="1.6"/>
+<text x="130.0" y="282" font-size="14" font-weight="bold" text-anchor="middle" fill="#6a4fb0">PC: smoke-test</text>
+<text x="130.0" y="302" font-size="11.5" text-anchor="middle" fill="#344054">lab8_wifi_web_status_</text>
+<text x="130.0" y="318" font-size="11.5" text-anchor="middle" fill="#344054">smoke_test.py --host</text>
+<polyline points="130,260 130,210" fill="none" stroke="#344054" stroke-width="1.8" marker-end="url(#arr)"/>
+<rect x="330" y="300" width="280" height="70" rx="8" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.6"/>
+<text x="470.0" y="322" font-size="14" font-weight="bold" text-anchor="middle" fill="#2b5a8a">mDNS responder</text>
+<text x="470.0" y="342" font-size="11.5" text-anchor="middle" fill="#344054">lab8-esp32.local → IP</text>
+<polyline points="470,260 470,300" fill="none" stroke="#344054" stroke-width="1.8" marker-end="url(#arr)"/>
+<rect x="700" y="300" width="200" height="90" rx="8" fill="#fdecec" stroke="#b42318" stroke-width="1.6" stroke-dasharray="6 4"/>
+<text x="800.0" y="322" font-size="14" font-weight="bold" text-anchor="middle" fill="#b42318">Internet</text>
+<text x="800.0" y="342" font-size="11.5" text-anchor="middle" fill="#344054">no port forwarding:</text>
+<text x="800.0" y="358" font-size="11.5" text-anchor="middle" fill="#344054">page NOT reachable</text>
+<text x="800.0" y="374" font-size="11.5" text-anchor="middle" fill="#344054">from outside</text>
+<polyline points="700,345 655,345 655,235 612,235" fill="none" stroke="#b42318" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrRed)"/>
+<text x="649" y="300" font-size="11.5" text-anchor="end" fill="#b42318">blocked</text>
+</svg>
