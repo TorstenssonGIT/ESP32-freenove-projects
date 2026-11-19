@@ -207,6 +207,24 @@ shown directly on GitHub, plus a Diagrams section in the plan.
 - [X] All SVGs render on GitHub
 - [X] Wiring diagram matches the board (VCC, resistor value)
 
+## Photos: board A set-up, sensors, LCD and web status page
+
+**Branch:** `lab8/photos`
+
+### Changes
+- `src/lab8_photo_of_board_set-up.jpg`: board A with LCD, Modulino Thermo and DHT11
+- `src/lab8_photo_of_sensors_closeup.jpg`: sensor wiring close-up
+- `src/lab8_photo_of_lcd_sensor_readings.jpg`: LCD with HS3003 and DHT11 readings
+- `src/lab8_photo_of_lcd_connected_to_internet.jpg`: LCD with "Internet OK" (8.4/8.5)
+- `src/lab8_screenshot_web_status.png`: 8.5 status page, neighbouring SSIDs hidden
+- `src/lab8_wifi.md`: new "Photos" section
+
+### Checks
+- [X ] All images show on GitHub (file names and case match the MD)
+- [ X] Neighbouring networks' SSIDs hidden in the screenshot
+- [ X] No passwords or other private details visible in the photos
+- [ X] Images under ~500 kB each
+
 ### Security checklist
 - [X] No passwords or private network details in the diagrams
 
@@ -303,3 +321,12 @@ the humidity measurements (FR-HUM) and the DHT11 recovery check (HW-8).
 
 ### Security checklist
 - [x] No passwords in the diff (no Wi-Fi in this sketch)
+
+
+## Note: AI support
+
+This project was created with the help of Claude (Anthropic), which assisted
+with code, documentation and diagrams.
+The ideas, concepts, analysis and designs are my own.
+All labs/exercices have been performed and tested by me.
+git/and github is managed by me.
