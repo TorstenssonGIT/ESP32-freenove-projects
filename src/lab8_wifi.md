@@ -28,18 +28,18 @@ The printer (feature 4) is reached through its own Wi-Fi Direct network
 (`DIRECT-93-HP OfficeJet 8010`), which has no internet access.
 
 ## Agreed feature list
-
 | # | Feature | Planned result | Status |
 |---|---|---|---|
 | 1 | Scan nearby 2.4 GHz Wi-Fi networks | Show scan status/count on the LCD, then cycle through each SSID (up to 16 characters), RSSI, and channel; list full details and security mode on Serial, clearly identifying open networks. Do not automatically join discovered networks. | Done. 8.1: readable code + credentials template. 8.2: readable SSID on Serial. Board tested: 12 networks (MC888 Pro off), later 19. |
 | 1b | Python smoke-test for the scan | `lab8_wifi_scan_smoke_test.py` reads one scan from Serial and validates counts, SSID, RSSI, channel and auth mode; lists open networks. | Done (8.3): PASS on COM3, 22 networks, 2 open. |
 | 2 | List and classify clients on an authorized network | Use an appropriate, authorized source for the network's client list. Do not attempt to access devices or networks without permission. | Planned |
 | 3 | Connect to an internet webpage | Join the configured 2.4 GHz network as host name `lab8-esp32`; report IP, gateway, subnet and DNS on Serial and name + IP on the LCD; check `http://connectivitycheck.gstatic.com/generate_204` (HTTP 204 = internet OK) every 30 s. | Done (8.4): connected as `lab8-esp32` (192.168.32.6, DNS 192.168.32.1), HTTP 204 in ~300 ms; smoke-test PASS on COM3; router off shows "WiFi FAIL" and recovers. 8.4b: credentials moved to NVS (XOR-obfuscated), entered via Serial menu; smoke-test PASS. |
-| 3b | Web status page on the ESP32 | Serve `http://<esp-ip>/` and `http://lab8-esp32.local/` with the latest scan result and connection/internet status (hostname, IP, gateway, subnet, DNS, HTTP result); `/api/status` returns JSON for the Python smoke-test. Feature 6 later adds the LCD text form to this same server. | Planned (8.5) |
+| 3b | Web status page on the ESP32 | Serve `http://<esp-ip>/` and `http://lab8-esp32.local/` with the latest scan result and connection/internet status (hostname, IP, gateway, subnet, DNS, HTTP result); `/api/status` returns JSON for the Python smoke-test. Feature 6 later adds the LCD text form to this same server. | Done (8.5): page at `http://<ip>/` and `http://lab8-esp32.local/`, JSON at `/api/status`; read-only, local subnet only, SSIDs escaped; connect time / reconnects / uptime and NTP local time shown; web smoke-test, 8.4 smoke-test and router off/on PASS. |
 | 4 | Print a scan report on the HP printer over Wi-Fi | Target printer: HP OfficeJet 8010 series, reached through its Wi-Fi Direct network. The ESP32 scans nearby networks, then sends a plain-text report to port 9100 (JetDirect/raw), ending with a form feed. Each network: SSID as ASCII text and as hex (same as `ssid="…"` and `ssid_hex=` on Serial; non-printable characters as `?` in the text), RSSI, channel, security; open networks marked. | PC test passed: plain text to port 9100 over Wi-Fi Direct printed correctly (no PCL needed). ESP32 firmware planned (8.6). |
 | 5 | Run a Wi-Fi bandwidth test | Use a controlled endpoint and a bounded test; show the result/status on the LCD. | Planned |
 | 6 | Browse to the ESP32 and type text for the LCD | Serve a basic page from the ESP32; submitted text is shown on the existing LCD. This is a simple browser page, not a phone app. | Planned |
 | 7 | Wi-Fi presence detector | Detect presence from changes in Wi-Fi signal strength, using a motor-turned improvised reflector. Details to be agreed. | Planned |
+| 8 | Temperature and humidity sensors | Read the Modulino Thermo (HS3003, I2C) and the DHT11 side by side every 2 s on Serial and the LCD; later the SHT31-D (heater) at the steam and the DHT11 recovery check. | Sensor test done: Modulino at 0x44, HS3003 21.94 °C / 35.4 % RH, DHT11 21.4 °C / 36.3 % RH (difference −0.54 °C / +0.9 % RH). SHT31-D and INA229 pending. |
 
 ## Build and test approach
 
@@ -73,6 +73,11 @@ from NTP (CET/CEST). The web smoke-test runs over the network instead of
 Serial, e.g.
 `python tests/lab8_wifi_web_status_smoke_test.py --host lab8-esp32.local`.
 
+The sensor test is implemented in `lab8_sensor_test.cpp`. It scans the 3.3 V
+I2C bus at start and then reads the Modulino Thermo (HS3003) and the DHT11
+every 2 s, printing both values and their difference on Serial and the LCD.
+No Wi-Fi is used. Wiring: `lab8_wiring_sensors.svg`.
+
 ## Existing hardware to reuse
 
 - ESP32-S3 board with built-in 2.4 GHz Wi-Fi.
@@ -90,6 +95,19 @@ Keep the LCD wiring unchanged. NEXT and OK buttons are intended for stepping
 through tests and confirming selections; select safe, unused GPIO pins before
 adding button wiring. The photoresistor on GPIO 4 is part of Lab 6B and is not
 required for the initial Wi-Fi scan.
+
+## Sensors (board A)
+
+| Device | Connection | Notes |
+|---|---|---|
+| Arduino Modulino Thermo (HS3003) | 3.3 V I2C bus `Wire1`: SDA GPIO 47, SCL GPIO 21, 10 kΩ pull-ups to 3V3 | Address 0x44; 10 cm Qwiic-to-breadboard cable |
+| DHT11 (blue module, 4 pins) | DATA GPIO 14, VCC 3V3, GND | 10 kΩ pull-up on the module; max one read per 2 s |
+| INA229 current/power monitor | SPI: SCLK GPIO 39, SDI GPIO 40, SDO GPIO 41, CS GPIO 42, VS 3V3 | Shunt in the USB cable's VBUS; header soldering pending; microSD slot left empty |
+| SHT31-D, TMAG5273 (later) | Same 3.3 V I2C bus, chained by Qwiic | SHT31-D at 0x45 (jumper), TMAG5273 at 0x35 |
+
+The 3.3 V sensors have their own I2C bus because the LCD backpack runs at 5 V
+and may pull its bus (GPIO 1/2) to 5 V.
+
 
 ## Diagrams
 
