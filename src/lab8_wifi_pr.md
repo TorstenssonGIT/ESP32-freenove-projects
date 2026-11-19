@@ -263,3 +263,43 @@ the security decisions.
 - [x] No passwords in the diff
 - [x] Page shows no passwords; smoke-test password check done
 
+## Sensor test: Modulino Thermo (HS3003) + DHT11
+
+**Branch:** `lab8/sensor-test-modulino-dht11`
+
+### Summary
+First sensors on board A: two hygrometers read side by side, as a basis for
+the humidity measurements (FR-HUM) and the DHT11 recovery check (HW-8).
+
+### Changes
+- `src/lab8_sensor_test.cpp` (new)
+  - I2C scan of the 3.3 V sensor bus (Wire1, SDA GPIO 47, SCL GPIO 21,
+    100 kHz) at start: `I2C_SCAN ... found=<addresses>`.
+  - HS3003 (Modulino Thermo) read directly over I2C (measurement request,
+    4 bytes, status check); address found automatically (0x44 or 0x45).
+  - DHT11 on GPIO 14 (Adafruit DHT library), read every 2 s.
+  - Serial block every 2 s: `SENSOR_BEGIN` / `HS3003` / `DHT11` / `DIFF` /
+    `SENSOR_END`; both readings on the LCD.
+- `src/lab8_wiring_sensors.svg` (new): sensor wiring for board A
+  - Modulino on its own 3.3 V I2C bus with 10 kΩ pull-ups to 3V3 (the
+    Modulino has none; the LCD bus runs at 5 V).
+  - DHT11: VCC 3V3, DATA GPIO 14 (10 kΩ pull-up on the module), GND.
+  - INA229 on SPI (GPIO 39–42), shunt in the USB cable's VBUS (soldering
+    pending).
+- `platformio.ini`: sensor test line active; `lib_deps` adds
+  `adafruit/DHT sensor library` and `adafruit/Adafruit Unified Sensor`.
+
+### Results (board A, 2026-11-19)
+- I2C scan: Modulino Thermo at **0x44**, so the SHT31-D will use 0x45.
+- HS3003 21.94 °C / 35.4 % RH, DHT11 21.4 °C / 36.3 % RH.
+- Difference −0.54 °C / +0.9 % RH (DHT11 tolerance ±2 °C / ±5 % RH).
+
+### Testing
+- [x] Builds and uploads
+- [x] I2C scan finds the Modulino
+- [x] Both sensors `ok=1` every 2 s
+- [x] LCD shows both readings
+- [ ] INA229 wired and read (after soldering)
+
+### Security checklist
+- [x] No passwords in the diff (no Wi-Fi in this sketch)
