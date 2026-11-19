@@ -186,6 +186,20 @@ and saved in the ESP32's flash memory (NVS).
 - mDNS (`lab8-esp32.local`) may be blocked by some routers or guest
   networks; the IP shown on the LCD is the fallback address.
 
+## Photos
+
+## Photos
+
+![Board A set-up: ESP32-S3, LCD, Modulino Thermo and DHT11](lab8_photo_of_board_set-up.jpg)
+
+![Sensors close-up: Modulino Thermo on the 3.3 V I2C bus, DHT11 on GPIO 14](lab8_photo_of_sensors_closeup.jpg)
+
+![LCD with HS3003 and DHT11 readings](lab8_photo_of_lcd_sensor_readings.jpg)
+
+![LCD connected to the internet (8.4/8.5)](lab8_photo_of_lcd_connected_to_internet.jpg)
+
+![8.5 web status page, neighbouring networks hidden](lab8_screenshot_web_status.png)
+
 ## Security
 
 The full analysis (assets, threat actors, risk register, open issues) is in
