@@ -499,6 +499,20 @@ B echoed 705 of 705 packets (5 warm-up + 7 × 100), `echo_restarted=0`.
 ### Notes
 - No credentials in this PR. The router SSID is not in the docs.
 
+## Lab 8: feature 2, client list verified (manual)
+
+### What
+- `report/lab8_wifi_requirements.md` + `.pdf`: FR-CLIENT-1 verified; test table row for feature 2.
+- `lab8_wifi.md`: feature 2 marked done; open item resolved; screenshot added.
+- `lab8_screenshot_router_client_list.png`: router client page, MAC addresses hidden, other devices cropped.
+
+### Test
+- Source: the router's own client page (own network, authorized). Columns: device name, MAC address, IP address, Wi-Fi band, action (manage/block).
+- Result: `lab8-esp32` (192.168.32.2) and `lab8-echo` (192.168.32.6) listed by host name on 2.4 GHz; no wired clients. Other household devices are not part of the test.
+
+### Notes
+- No MAC addresses, personal device names or credentials in this PR.
+
 ## Note: AI support
 
 This project was created with the help of Claude (Anthropic), which assisted

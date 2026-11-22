@@ -89,7 +89,7 @@ network (`DIRECT-93-HP OfficeJet 8010`), which has no internet access.
 |---|---|---|---|
 | 1 | Scan nearby 2.4 GHz Wi-Fi networks | Show scan status/count on the LCD, then cycle through each SSID (up to 16 characters), RSSI, and channel; list full details and security mode on Serial, clearly identifying open networks. Do not automatically join discovered networks. | Done. 8.1: readable code + credentials template. 8.2: readable SSID on Serial. Board tested: 12 networks (MC888 Pro off), later 19. |
 | 1b | Python smoke-test for the scan | `lab8_wifi_scan_smoke_test.py` reads one scan from Serial and validates counts, SSID, RSSI, channel and auth mode; lists open networks. | Done (8.3): PASS on COM3, 22 networks, 2 open. |
-| 2 | List and classify clients on an authorized network | Use an appropriate, authorized source for the network's client list. Do not attempt to access devices or networks without permission. | Planned |
+| 2 | List and classify clients on an authorized network | Use an appropriate, authorized source for the network's client list. Do not attempt to access devices or networks without permission. | Done (manual): the router's client page lists device name, MAC address, IP address, Wi-Fi band and manage/block actions. `lab8-esp32` (192.168.32.2) and `lab8-echo` (192.168.32.6) are listed by host name on 2.4 GHz; no wired clients. Other household devices are not part of the test and are cropped from the screenshot. |
 | 3 | Connect to an internet webpage | Join the configured 2.4 GHz network as host name `lab8-esp32`; report IP, gateway, subnet and DNS on Serial and name + IP on the LCD; check `http://connectivitycheck.gstatic.com/generate_204` (HTTP 204 = internet OK) every 30 s. | Done (8.4): connected as `lab8-esp32` (192.168.32.6, DNS 192.168.32.1), HTTP 204 in ~300 ms; smoke-test PASS on COM3; router off shows "WiFi FAIL" and recovers. 8.4b: credentials moved to NVS (XOR-obfuscated), entered via Serial menu; smoke-test PASS. |
 | 3b | Web status page on the ESP32 | Serve `http://<esp-ip>/` and `http://lab8-esp32.local/` with the latest scan result and connection/internet status (hostname, IP, gateway, subnet, DNS, HTTP result); `/api/status` returns JSON for the Python smoke-test. Feature 6 later adds the LCD text form to this same server. | Done (8.5): page at `http://<ip>/` and `http://lab8-esp32.local/`, JSON at `/api/status`; read-only, local subnet only, SSIDs escaped; connect time / reconnects / uptime and NTP local time shown; web smoke-test, 8.4 smoke-test and router off/on PASS. |
 | 4 | Print a scan report on the HP printer over Wi-Fi | Target printer: HP OfficeJet 8010 series, reached through its Wi-Fi Direct network. The ESP32 scans nearby networks, then sends a plain-text report to port 9100 (JetDirect/raw), ending with a form feed. Each network: SSID as ASCII text and as hex (same as `ssid="…"` and `ssid_hex=` on Serial; non-printable characters as `?` in the text), RSSI, channel, security; open networks marked. | PC test passed: plain text to port 9100 over Wi-Fi Direct printed correctly (no PCL needed). ESP32 firmware planned (8.7). |
@@ -248,8 +248,8 @@ and saved in the ESP32's flash memory (NVS).
   port 9100 prints directly, verified from the PC with `nc`. Open question for
   8.7: no internet on Wi-Fi Direct, so the report has no date unless the time
   is fetched (NTP) on the router network first.
-- Router/client-list method for feature 2; use only a network the user owns or
-  is authorized to inventory.
+- Client list (resolved): read from the router's own client page (own network,
+  authorized); MAC addresses and personal device names are not documented.
 - Bandwidth test (resolved): board B is the controlled endpoint (UDP echo on port 5001, local subnet only, max 1460 B); each series is 7 × 100 packets.
 - Credentials are entered over Serial and stored in NVS (see "How Wi-Fi
   credentials work"); no credentials file is used. `.gitignore` still covers
@@ -277,6 +277,8 @@ and saved in the ESP32's flash memory (NVS).
 ![Serial monitor: motor and sensor test](lab8_screenshot_motor_and_sensor_test_monitor.png)
 
 ![Board A and board B: B with its own INA226 cable and the PIR](lab8_photo_of_board_a_and_board_b.jpg)
+
+![Router client list (feature 2): lab8-echo and lab8-esp32 on 2.4 GHz, MAC addresses hidden, other devices cropped](lab8_screenshot_router_client_list.png)
 
 ## Security
 
