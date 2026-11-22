@@ -322,6 +322,61 @@ the humidity measurements (FR-HUM) and the DHT11 recovery check (HW-8).
 ### Security checklist
 - [x] No passwords in the diff (no Wi-Fi in this sketch)
 
+## Motor and sensor test: 28BYJ-48, TMAG5273, HS3003, SHT31-D, DHT11, INA226
+
+**Branch:** `lab8/motor-sensor-test`
+
+### Summary
+All radar and climate hardware on board A in one test: the motor turns one
+revolution back and forth; the TMAG5273 looks for the index magnet while it
+turns; at rest (coils off) the three hygrometers and the INA226 are read.
+
+### Changes
+- `src/lab8_motor_and_sensor_test.cpp` (new)
+  - Motor: AccelStepper HALF4WIRE on GPIO 4, 6, 5, 7 (IN1, IN3, IN2, IN4),
+    4076 half steps per turn, 400 half steps/s, coils off between moves.
+  - Two I2C buses scanned at start: LCD bus (GPIO 1/2) and the 3.3 V sensor
+    bus (GPIO 47/21).
+  - TMAG5273 (0x35): continuous X/Y/Z, ±80 mT, read every 10 ms while
+    turning; strongest field and its motor position (`INDEX_PEAK`).
+  - HS3003 (0x44, raw bytes printed), SHT31-D (0x45, CRC-checked), DHT11
+    (GPIO 14): read at rest.
+  - INA226 on the LCD bus, found by its ID (0x5449/0x2260) at 0x40–0x4F:
+    `POWER_MOVE` (average and peak while turning) and `POWER_REST`.
+- `src/lab8_wiring_sensors.svg` (updated): board A wiring as verified.
+- `platformio.ini`: motor and sensor test active; `waspinator/AccelStepper`.
+- `src/lab8_wifi_requirements.md` + `.pdf`: HW-3 INA226 (I2C, LCD bus),
+  HW-7 motor on GPIO 4–7, HW-9 and HW-10 verified, traceability.
+- `src/lab8_wifi_rt_design.md` + `.pdf`: INA229 → INA226.
+- `src/lab8_kk2_design_report.md` + `.pdf`: sensors, actuators, results,
+  problems and solutions updated.
+
+### Results (board A, 2026-11-21)
+- Motor: 4076 half steps in 12.2 s, back to position 0 every time.
+- TMAG5273: background 0.04 mT; the magnet gives up to 80 mT per axis.
+- HS3003 22.5 °C / 37 %, SHT31-D 22.3 °C / 36 %, DHT11 21.2 °C / 38 % RH.
+- INA226 at rest: 5.27 V, 86–90 mA, ≈ 460 mW.
+- Motor through the shunt: 294 mA (max 390), 1.5 W; motor 5 V taken before
+  the shunt: 98 mA, 508 mW (the INA226 then measures the ESP32 only).
+
+### Problems found and solved
+- SHT31-D and Modulino both at 0x44 → SHT31-D address jumper to 0x45.
+- The power monitor boards are INA226 (I2C) at 0x44, not INA229 (SPI) →
+  moved to the LCD bus; this also fixed the Modulino's humidity (1–2 %).
+- Motor current through the shunt → motor 5 V from IN+.
+
+### Testing
+- [x] Builds and uploads
+- [x] Both I2C buses scanned; all devices found
+- [x] Motor back and forth, returns to 0
+- [x] Index peak follows the magnet
+- [x] Three hygrometers agree within about 1.5 °C / 2 % RH
+- [x] INA226 voltage, current and power plausible; positive current
+- [X] Motor on its own 5 V supply, connected to IN+ so the measurement is not included the MOTOR, only the draver board. 
+
+### Security checklist
+- [x] No passwords in the diff (no Wi-Fi in this sketch)
+
 
 ## Note: AI support
 
