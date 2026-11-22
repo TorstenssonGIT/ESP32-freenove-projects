@@ -43,6 +43,24 @@
  *    as movement when its spread is above KMoveSpreadDb. B's PIR is the
  *    reference for real movement.
  *
+ *  Movement web page (controller)
+ *  ------------------------------
+ *    http://lab8-esp32.local/ (or http://<A's ip>/) shows live graphs of the
+ *    last 3 minutes: RSSI of both links, their spread with the threshold, and
+ *    B's PIR as shaded bands; boxes show which link reports movement now.
+ *    /api/move returns the same data as JSON. Read-only, local subnet only,
+ *    script only from the ESP32 itself (CSP). The monitor starts by itself
+ *    after the boot series.
+ *
+ *  Empty-room calibration (FR-RADAR-4)
+ *  ------------------------------------
+ *    'k' on A: 30 s to leave (nobody within about 2 m of a board, nobody on
+ *    the paths), then 30 s of recording. Per link: baseline level = median of
+ *    the 1 s medians, calm spread = largest spread seen. After that a link
+ *    reports movement when its level is >= 3 dB below the baseline, or its
+ *    spread is above the calm spread + 1 dB. Before calibration the fixed
+ *    2.0 dB spread threshold is used. 'k' again re-calibrates.
+ *
  *  Requirements: FR-BW-1...4, FR-BW-6, FR-BW-7, NFR-RT-2, NFR-RT-3, SEC-7,
  *  FR-RADAR-4 (first part, without empty-room calibration), HW-11.
  *  Not yet: direct mode (FR-BW-5), web page output (FR-BW-4).
@@ -61,8 +79,9 @@
  *      BW_RESULT size=<B> sent=<n> lost=<n> changed=<n> rtt_min_us=.. rtt_med_us=..
  *                rtt_avg_us=.. rtt_max_us=.. kbps=.. a_v=.. a_i_ma=.. a_p_mw=..
  *      BW_SERIES done=1 echo_restarted=<0|1> rssi=<dBm>
- *      MOVE uptime_s=<s> a_rssi=<dBm> a_sd=<dB> a_move=<0|1>
- *           b_ok=<0|1> b_rssi=<dBm> b_sd=<dB> b_move=<0|1>
+ *      CAL state=<leave|recording|done> ... a_base=<dBm> a_calm=<dB> b_base=.. b_calm=..
+ *      MOVE uptime_s=<s> a_rssi=<dBm> a_sd=<dB> a_drop=<dB> a_move=<0|1>
+ *           b_ok=<0|1> b_rssi=<dBm> b_sd=<dB> b_drop=<dB> b_move=<0|1>
  *           b_pir=<0|1> b_pir_any=<0|1> b_pir_edges=<n> b_p_mw=<mW>
  *    B's answer to MEAS?:
  *      MEAS rssi=<dBm> sd=<dB> n=<samples> pir=<0|1> pir_any=<0|1>
@@ -76,6 +95,7 @@
 #include <ESPmDNS.h>
 #include <LiquidCrystal_PCF8574.h>
 #include <WiFi.h>
+#include <WebServer.h>
 #include <WiFiUdp.h>
 #include <Wire.h>
 #include <algorithm>
@@ -105,6 +125,13 @@ constexpr uint32_t KSampleMs       = 100;         // RSSI/PIR sample interval
 constexpr int      KWindowSamples  = 10;          // 10 x 100 ms = 1 s window
 constexpr float    KMoveSpreadDb   = 2.0f;        // spread above this = movement (tune)
 constexpr uint32_t KMeasTimeoutUs  = 300000;      // wait for B's MEAS answer
+constexpr int      KCalLeaveS      = 30;          // time to walk away after 'k'
+constexpr int      KCalRecordS     = 30;          // empty-room recording
+constexpr float    KCalDropDb      = 3.0f;        // level this far below baseline = movement
+constexpr float    KCalSpreadMarginDb = 1.0f;     // spread above calm spread + this = movement
+
+constexpr uint16_t KWebPort         = 80;
+constexpr int      KHistorySize     = 180;        // 180 x 1 s = 3 minutes on the page
 
 constexpr uint32_t KWifiTimeoutMs   = 20000;
 constexpr uint32_t KPowerIntervalMs = 5000;
@@ -161,6 +188,29 @@ struct WindowResult {
 Window       window;                              // this board's current window
 WindowResult lastWindow;                          // this board's last finished window
 bool         monitorOn = false;                   // controller: movement monitor running
+
+// One second of the movement monitor, kept for the web page.
+struct MoveSample {
+    uint32_t uptimeS;
+    int8_t   aRssi, bRssi;
+    float    aSpread, bSpread;
+    bool     aMove, bMove, bOk, bPirAny;
+};
+MoveSample history[KHistorySize];
+int        historyCount = 0;                      // samples stored (max KHistorySize)
+int        historyNext  = 0;                      // where the next sample goes
+
+// Empty-room calibration (controller).
+enum CalState { CAL_NONE, CAL_LEAVE, CAL_RECORD, CAL_DONE };
+CalState calState = CAL_NONE;
+int      calSecondsLeft = 0;
+int      calCount = 0, calCountB = 0;
+int8_t   calA[KCalRecordS], calB[KCalRecordS];    // 1 s medians while recording
+float    calCalmA = 0, calCalmB = 0;              // largest spread while recording
+float    baseA = 0, baseB = 0;                    // baseline levels (dBm)
+
+WebServer server(KWebPort);
+bool      webStarted = false;
 
 // ---------------------------------------------------------------------------
 //  LCD (controller only) and INA226
@@ -484,8 +534,52 @@ void runSeries() {
     printStatus("after", after);
     bool restarted = before.ok && after.ok && after.uptimeMs < before.uptimeMs;   // FR-BW-6
     Serial.printf("BW_SERIES done=1 echo_restarted=%d rssi=%d\n", restarted ? 1 : 0, (int)WiFi.RSSI());
-    Serial.println("Send r to run again, m for the movement monitor.");
+    Serial.println("Send r to run again, m for the movement monitor, k to calibrate.");
     showOnLcd(restarted ? "Done: ECHO RESET" : "Series done", "r=again m=move");
+}
+
+// =============================================================================
+//  Empty-room calibration (FR-RADAR-4)
+// =============================================================================
+void startCalibration() {
+    calState = CAL_LEAVE;
+    calSecondsLeft = KCalLeaveS;
+    calCount = calCountB = 0;
+    calCalmA = calCalmB = 0;
+    Serial.printf("CAL state=leave seconds=%d (nobody within 2 m of a board, nobody on the paths)\n", KCalLeaveS);
+}
+
+int8_t medianOf(int8_t* v, int n) {
+    std::sort(v, v + n);
+    return v[n / 2];
+}
+
+// Called once per second with the newest windows of both links.
+void stepCalibration(int aRssi, float aSd, bool bOk, int bRssi, float bSd) {
+    if (calState == CAL_LEAVE) {
+        if (--calSecondsLeft > 0) return;
+        calState = CAL_RECORD;
+        calSecondsLeft = KCalRecordS;
+        Serial.printf("CAL state=recording seconds=%d\n", KCalRecordS);
+        return;
+    }
+    if (calState != CAL_RECORD) return;
+
+    calA[calCount++] = aRssi;
+    if (aSd > calCalmA) calCalmA = aSd;
+    if (bOk) {
+        calB[calCountB++] = bRssi;
+        if (bSd > calCalmB) calCalmB = bSd;
+    }
+    if (--calSecondsLeft > 0) return;
+
+    baseA = medianOf(calA, calCount);
+    baseB = calCountB > 0 ? medianOf(calB, calCountB) : 0;
+    calState = CAL_DONE;
+    Serial.printf("CAL state=done a_base=%.0f a_calm=%.2f b_base=%.0f b_calm=%.2f b_seconds=%d "
+                  "rule: drop>=%.1f dB or spread>calm+%.1f dB\n",
+                  baseA, calCalmA, baseB, calCalmB, calCountB, KCalDropDb, KCalSpreadMarginDb);
+    if (calCountB < KCalRecordS / 2) Serial.println("CAL warning: B answered less than half the time, run k again");
 }
 
 // Asks B for its last window and prints one MOVE line with both links.
@@ -512,18 +606,195 @@ void reportMovement() {
         }
     }
 
-    bool aMove = lastWindow.spread > KMoveSpreadDb;
-    bool bMove = bOk && bSd > KMoveSpreadDb;
-    Serial.printf("MOVE uptime_s=%lu a_rssi=%d a_sd=%.2f a_move=%d "
-                  "b_ok=%d b_rssi=%d b_sd=%.2f b_move=%d b_pir=%d b_pir_any=%d b_pir_edges=%d b_p_mw=%.0f\n",
-                  (unsigned long)(millis() / 1000), lastWindow.median, lastWindow.spread, aMove ? 1 : 0,
-                  bOk ? 1 : 0, bRssi, bSd, bMove ? 1 : 0, bPir, bPirAny, bEdges, bP);
+    stepCalibration(lastWindow.median, lastWindow.spread, bOk, bRssi, bSd);
+
+    float aDrop = 0, bDrop = 0;
+    bool aMove, bMove;
+    if (calState == CAL_DONE) {
+        aDrop = baseA - lastWindow.median;        // positive = weaker than the empty room
+        bDrop = baseB - bRssi;
+        aMove = aDrop >= KCalDropDb || lastWindow.spread > calCalmA + KCalSpreadMarginDb;
+        bMove = bOk && (bDrop >= KCalDropDb || bSd > calCalmB + KCalSpreadMarginDb);
+    } else {
+        aMove = lastWindow.spread > KMoveSpreadDb;
+        bMove = bOk && bSd > KMoveSpreadDb;
+    }
+    Serial.printf("MOVE uptime_s=%lu a_rssi=%d a_sd=%.2f a_drop=%.1f a_move=%d "
+                  "b_ok=%d b_rssi=%d b_sd=%.2f b_drop=%.1f b_move=%d b_pir=%d b_pir_any=%d b_pir_edges=%d b_p_mw=%.0f\n",
+                  (unsigned long)(millis() / 1000), lastWindow.median, lastWindow.spread, aDrop, aMove ? 1 : 0,
+                  bOk ? 1 : 0, bRssi, bSd, bDrop, bMove ? 1 : 0, bPir, bPirAny, bEdges, bP);
+
+    MoveSample& h = history[historyNext];
+    h.uptimeS = millis() / 1000;
+    h.aRssi = lastWindow.median;  h.aSpread = lastWindow.spread;  h.aMove = aMove;
+    h.bRssi = bRssi;              h.bSpread = bSd;                h.bMove = bMove;
+    h.bOk = bOk;                  h.bPirAny = bOk && bPirAny;
+    historyNext = (historyNext + 1) % KHistorySize;
+    if (historyCount < KHistorySize) historyCount++;
 
     char line1[40], line2[40];                   // showOnLcd() cuts to 16
     snprintf(line1, sizeof(line1), "A%d s%.1f %s", lastWindow.median, lastWindow.spread, aMove ? "MOVE" : "");
     if (bOk) snprintf(line2, sizeof(line2), "B%d s%.1f P%d%s", bRssi, bSd, bPirAny, bMove ? " M" : "");
     else     snprintf(line2, sizeof(line2), "B no answer");
+    if (calState == CAL_LEAVE)  { snprintf(line1, sizeof(line1), "Calibrate: leave"); snprintf(line2, sizeof(line2), "starts in %d s", calSecondsLeft); }
+    if (calState == CAL_RECORD) { snprintf(line1, sizeof(line1), "Calibrating..."); snprintf(line2, sizeof(line2), "keep away %d s", calSecondsLeft); }
     showOnLcd(line1, line2);
+}
+
+// =============================================================================
+//  Movement web page (controller)
+// =============================================================================
+
+const char KPageHtml[] PROGMEM = R"HTML(<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lab 8 movement</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1b;--mute:#6b6a66;--line:#e2e0da;
+--a:#2563eb;--b:#d97706;--pir:rgba(120,120,120,.16);--move:#dc2626}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--card:#1f1f1d;--ink:#eceae4;
+--mute:#9c9a93;--line:#34332f;--a:#60a5fa;--b:#fbbf24;--pir:rgba(200,200,200,.12);--move:#f87171}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,sans-serif}
+main{max-width:960px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 4px}p{margin:0 0 12px;color:var(--mute)}
+.boxes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}
+.box b{display:block;font-size:13px;color:var(--mute);font-weight:500}
+.box span{font-size:20px;font-weight:600}
+.on{color:var(--move)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:12px}
+.card h2{font-size:14px;margin:0 0 6px;font-weight:600}
+canvas{width:100%;height:200px;display:block}
+.key{font-size:13px;color:var(--mute)}.key i{display:inline-block;width:12px;height:3px;margin:0 4px 3px 10px;vertical-align:middle}
+</style></head><body><main>
+<h1>Lab 8 &ndash; movement monitor</h1>
+<p id="info">Waiting for data&hellip;</p>
+<div class="boxes">
+<div class="box"><b>Link A &ndash; router</b><span id="ma">&ndash;</span></div>
+<div class="box"><b>Link B &ndash; router</b><span id="mb">&ndash;</span></div>
+<div class="box"><b>PIR at B</b><span id="mp">&ndash;</span></div>
+</div>
+<div class="card"><h2>Signal strength (dBm, median per second)</h2><canvas id="c1"></canvas>
+<div class="key"><i style="background:var(--a)"></i>A&ndash;router<i style="background:var(--b)"></i>B&ndash;router<i style="background:var(--pir);height:10px"></i>PIR at B saw movement &middot; dashed = empty-room baseline</div></div>
+<div class="card"><h2>Spread (dB, standard deviation per second)</h2><canvas id="c2"></canvas>
+<div class="key"><i style="background:var(--a)"></i>A<i style="background:var(--b)"></i>B &middot; dashed = movement threshold</div></div>
+</main><script src="/app.js"></script></body></html>
+)HTML";
+
+const char KPageJs[] PROGMEM = R"JS(
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function draw(id,rows,ia,ib,lo,hi,thr,refs){
+  const c=document.getElementById(id),r=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+  c.width=w*r;c.height=h*r;const g=c.getContext('2d');g.scale(r,r);g.clearRect(0,0,w,h);
+  const L=36,R=w-6,T=6,B=h-18,n=180,x=i=>L+(R-L)*i/(n-1),y=v=>B-(B-T)*(v-lo)/(hi-lo);
+  const off=n-rows.length;
+  g.fillStyle=css('--pir');rows.forEach((s,i)=>{if(s[8])g.fillRect(x(i+off)-(R-L)/n/2,T,(R-L)/n+1,B-T)});
+  g.strokeStyle=css('--line');g.fillStyle=css('--mute');g.font='11px system-ui';g.lineWidth=1;
+  for(let k=0;k<=4;k++){const v=lo+(hi-lo)*k/4,yy=y(v);g.beginPath();g.moveTo(L,yy);g.lineTo(R,yy);g.stroke();g.fillText(v.toFixed(hi-lo<10?1:0),2,yy+4)}
+  g.fillText('-3 min',L,h-4);g.fillText('now',R-22,h-4);
+  if(thr!=null){g.strokeStyle=css('--move');g.setLineDash([4,4]);g.beginPath();g.moveTo(L,y(thr));g.lineTo(R,y(thr));g.stroke();g.setLineDash([])}
+  (refs||[]).forEach(([v,col])=>{g.strokeStyle=css(col);g.lineWidth=1;g.setLineDash([5,4]);g.beginPath();g.moveTo(L,y(v));g.lineTo(R,y(v));g.stroke();g.setLineDash([])});
+  [[ia,'--a'],[ib,'--b']].forEach(([k,col])=>{g.strokeStyle=css(col);g.lineWidth=2;g.beginPath();let up=false;
+    rows.forEach((s,i)=>{if(k>=5&&!s[4]){up=false;return}const v=Math.max(lo,Math.min(hi,s[k]));
+      if(up)g.lineTo(x(i+off),y(v));else{g.moveTo(x(i+off),y(v));up=true}});g.stroke()});
+}
+function setBox(id,on,text){const e=document.getElementById(id);e.textContent=text;e.className=on?'on':''}
+async function tick(){
+  try{
+    const d=await (await fetch('/api/move',{cache:'no-store'})).json(),rows=d.rows;
+    if(!rows.length){document.getElementById('info').textContent=d.monitor?'Monitor running, waiting for the first second':'Monitor is off (send m on Serial)';return}
+    const s=rows[rows.length-1];
+    const cal=d.cal==='done'?'calibrated: movement = level '+d.drop+' dB below the dashed baseline, or spread above the dashed line'
+      :d.cal==='leave'?'CALIBRATION: leave the area, recording starts in '+d.calLeft+' s'
+      :d.cal==='recording'?'CALIBRATION: recording the empty room, keep away '+d.calLeft+' s'
+      :'not calibrated (send k): movement = spread above '+d.threshold+' dB';
+    document.getElementById('info').textContent='Uptime '+s[0]+' s \u00b7 '+cal;
+    setBox('ma',s[3],s[3]?'MOVEMENT':'quiet');
+    setBox('mb',s[7],!s[4]?'no answer':(s[7]?'MOVEMENT':'quiet'));
+    setBox('mp',s[8],!s[4]?'–':(s[8]?'movement':'quiet'));
+    const done=d.cal==='done';
+    let lo=0,hi=-100;rows.forEach(r=>{lo=Math.min(lo,r[1],r[4]?r[5]:0);hi=Math.max(hi,r[1],r[4]?r[5]:-100)});
+    if(done){lo=Math.min(lo,d.baseA-d.drop,d.baseB-d.drop);hi=Math.max(hi,d.baseA,d.baseB)}
+    draw('c1',rows,1,5,Math.floor(lo/5)*5-5,Math.ceil(hi/5)*5+5,null,done?[[d.baseA,'--a'],[d.baseB,'--b']]:[]);
+    let sm=d.threshold+1;rows.forEach(r=>{sm=Math.max(sm,r[2],r[6])});if(done)sm=Math.max(sm,d.thrA,d.thrB);
+    draw('c2',rows,2,6,0,Math.ceil(sm),done?null:d.threshold,done?[[d.thrA,'--a'],[d.thrB,'--b']]:[]);
+  }catch(e){document.getElementById('info').textContent='No contact with the ESP32'}
+}
+tick();setInterval(tick,1000);addEventListener('resize',tick);
+)JS";
+
+void sendSecurityHeaders() {
+    server.sendHeader("Cache-Control", "no-store");
+    server.sendHeader("X-Content-Type-Options", "nosniff");
+    server.sendHeader("X-Frame-Options", "DENY");
+    server.sendHeader("Referrer-Policy", "no-referrer");
+    // Script only from this ESP32 (/app.js), data only from /api/move.
+    server.sendHeader("Content-Security-Policy",
+                      "default-src 'none'; script-src 'self'; connect-src 'self'; "
+                      "style-src 'unsafe-inline'");
+}
+
+// Answer only clients on our own subnet (same rule as the echo server, SEC-7).
+bool acceptRequest() {
+    sendSecurityHeaders();
+    if (!isLocalSender(server.client().remoteIP())) {
+        server.send(403, "text/plain", "Forbidden: local network only\n");
+        return false;
+    }
+    return true;
+}
+
+void handlePage() { if (acceptRequest()) server.send_P(200, "text/html; charset=utf-8", KPageHtml); }
+void handleJs()   { if (acceptRequest()) server.send_P(200, "text/javascript; charset=utf-8", KPageJs); }
+
+// rows: [uptime_s, a_rssi, a_sd, a_move, b_ok, b_rssi, b_sd, b_move, b_pir_any], oldest first.
+void handleApiMove() {
+    if (!acceptRequest()) return;
+    String json;
+    json.reserve(200 + historyCount * 44);
+    json += "{\"monitor\":";
+    json += monitorOn ? "true" : "false";
+    json += ",\"threshold\":";
+    json += String(KMoveSpreadDb, 1);
+    json += ",\"cal\":\"";
+    json += calState == CAL_DONE ? "done" : calState == CAL_RECORD ? "recording" : calState == CAL_LEAVE ? "leave" : "none";
+    json += "\",\"calLeft\":";
+    json += String(calSecondsLeft);
+    if (calState == CAL_DONE) {
+        json += ",\"baseA\":";  json += String(baseA, 0);
+        json += ",\"baseB\":";  json += String(baseB, 0);
+        json += ",\"thrA\":";   json += String(calCalmA + KCalSpreadMarginDb, 2);
+        json += ",\"thrB\":";   json += String(calCalmB + KCalSpreadMarginDb, 2);
+        json += ",\"drop\":";   json += String(KCalDropDb, 1);
+    }
+    json += ",\"rows\":[";
+    int first = (historyNext - historyCount + KHistorySize) % KHistorySize;
+    char item[64];
+    for (int i = 0; i < historyCount; i++) {
+        const MoveSample& h = history[(first + i) % KHistorySize];
+        snprintf(item, sizeof(item), "%s[%lu,%d,%.2f,%d,%d,%d,%.2f,%d,%d]", i ? "," : "",
+                 (unsigned long)h.uptimeS, h.aRssi, h.aSpread, h.aMove, h.bOk,
+                 h.bRssi, h.bSpread, h.bMove, h.bPirAny);
+        json += item;
+    }
+    json += "]}";
+    server.send(200, "application/json", json);
+}
+
+void handleNotFound() {
+    sendSecurityHeaders();
+    server.send(404, "text/plain", "Not found\n");
+}
+
+void startWebServer() {
+    server.on("/", HTTP_GET, handlePage);
+    server.on("/app.js", HTTP_GET, handleJs);
+    server.on("/api/move", HTTP_GET, handleApiMove);
+    server.onNotFound(handleNotFound);
+    server.begin();
+    webStarted = true;
+    Serial.printf("WEB_READY url=http://%s/ and http://%s.local/\n",
+                  WiFi.localIP().toString().c_str(), KControllerName);
 }
 
 void controllerLoop() {
@@ -533,6 +804,13 @@ void controllerLoop() {
             monitorOn = false;
             findEchoServer();
             runSeries();
+        } else if (c == 'k' || c == 'K') {
+            if (!monitorOn) {                     // calibration needs the monitor
+                monitorOn = true;
+                findEchoServer();
+                window = Window();
+            }
+            startCalibration();
         } else if (c == 'm' || c == 'M') {
             monitorOn = !monitorOn;
             if (monitorOn) {
@@ -547,6 +825,7 @@ void controllerLoop() {
         }
     }
     if (monitorOn && sampleWindow()) reportMovement();
+    if (webStarted) server.handleClient();
 }
 
 // =============================================================================
@@ -591,6 +870,10 @@ void setup() {
         udp.begin(KLocalPort);
         findEchoServer();
         runSeries();
+        startWebServer();
+        monitorOn = true;                         // the page shows data right away
+        window = Window();
+        Serial.printf("MOVE_MONITOR on=1 threshold_db=%.1f\n", KMoveSpreadDb);
     }
 }
 

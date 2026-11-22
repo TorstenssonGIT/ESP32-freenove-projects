@@ -292,7 +292,89 @@ power. A prints one `MOVE` line per second for both links.
   a strong, short link is not sensitive. B was then moved further away.
 - A fixed 2.0 dB spread threshold catches only part of the movement. A drop in
   level against an empty-room baseline is the better indicator.
-- Next step (FR-RADAR-4): 30 s empty-room calibration per link; flag movement
+**Test 2 (B behind the washing machine, PIR fixed).** B was moved behind the
+washing machine (about 5 dB weaker, −62 dBm, same level as A). The PIR first
+triggered every 2.5–3 s with nobody there: it saw warm air from the
+water-heated towel rail and a warm water pipe (a mug over the PIR stopped it,
+so it was heat, not B's radio). Turned away from them, it stayed quiet.
+
+| Uptime (s) | Phase | A–router | B–router | B's PIR |
+|---|---|---|---|---|
+| 4030–4120 | still | −62 dBm, spread ≈ 0.5 dB | −62 dBm, spread ≈ 0.2 dB | quiet |
+| 4120–4183 | standing/walking across A's leg | **−65…−68 dBm**, spread up to 4.8 dB | unchanged, −62 dBm | quiet |
+| 4200–4268 | standing/walking across B's leg | stays ≈ −66 dBm, spread ≈ 0.2 dB | **drop to −75 dBm** on entering, spread up to 5.0 dB, then ≈ −63 dBm | active |
+| 4268–4330 | still (person at B) | recovers to ≈ −64 dBm | back to −61.5 dBm | active (person in view) |
+
+![Movement monitor, test 2: RSSI and spread of both links, B's PIR](lab8_chart_move_monitor_v_layout.png)
+
+- Crossing A's leg moved only A's link; crossing B's leg moved B's link, and the
+  PIR confirms the person was at B.
+- A stayed about 4 dB low while the person stood on B's leg, with a flat spread:
+  a static obstruction near the point of the V (the router), where the legs meet.
+- A level drop of 3–6 dB against the still baseline marks the crossed leg more
+  reliably than the 2.0 dB spread threshold, which caught only single seconds.
+
+**Test 3 (B in the kitchen, nearly in line with A).** B was placed in the
+kitchen, about 14 m from the router and about 1 m beside the line router–A
+(A at 4.5 m). Expected: crossing at 3 m (before A) moves both links, crossing at
+9 m (past A) moves only B. During the still periods the author sat at A's desk.
+
+| Uptime (s) | Phase | A–router | B–router |
+|---|---|---|---|
+| 5074–5095 | at the desk | −58.5 dBm | −65.5 dBm |
+| 5095–5150 | crossing at 3 m | −62 dBm (−4 dB), spread up to 4.4 dB | −66 dBm, dips to −70 dBm, spread up to 1.8 dB |
+| 5190–5244 | crossing at 9 m | **−67…−69 dBm (−10 dB)**, spread up to 4.8 dB | −66 dBm, spread up to 2.8 dB once |
+| 5244–5320 | back at the desk | −56…−58 dBm | −65 dBm |
+
+![Movement monitor, test 3: a person next to a board moves its link more than a crossing](lab8_chart_move_monitor_inline_layout.png)
+
+- At 3 m both links reacted, as expected, A more than B.
+- At 9 m A dropped about 10 dB and B hardly moved: the opposite of the
+  prediction. A's level followed **where the person was**: highest with the
+  author next to it at the desk, lowest when he was far away.
+- Conclusion: **a person within about 1 m of a board changes that board's RSSI
+  more (up to ≈ 10 dB) than a person crossing its path (3–6 dB).** The body
+  absorbs and reflects the 2.4 GHz signal right at the antenna and can detune the
+  small PCB antenna. It is the same effect as holding a car key to your head to
+  reach the car from further away: a body next to an antenna becomes part of it.
+- Consequences: place the boards where nobody sits or stands; take the
+  empty-room baseline with nobody near any board; a large, lasting change on one
+  link can be read as "someone is close to this board".
+- Two links about 1 m apart along nearly the same line did not separate
+  reliably; the V layout (test 2) did.
+- B's PIR was active the whole time in the kitchen (warm surfaces in view), so it
+  was no reference in this test.
+
+**Test 4 (calibrated, same kitchen layout as test 3).** New in the firmware:
+`k` on A gives 30 s to leave, then records 30 s of the empty room. Per link the
+baseline is the median level and the calm spread the largest spread seen; a link
+then reports movement when its level is ≥ 3 dB below the baseline or its spread
+is above the calm spread + 1 dB. The web page shows baselines and thresholds as
+dashed lines. A second person sat still about 3 m from A during calibration and test.
+
+| Uptime (s) | Phase | A–router (baseline −58 dBm) | B–router (baseline −67 dBm) |
+|---|---|---|---|
+| 1426–1566 | quiet | ≈ 2 dB below baseline, **no alarm** | at baseline, **no alarm** |
+| 1566–1596 | walking at 9 m (past A) | drop 4–5 dB, movement in ≈ 4 of 10 s | drop ≤ 2 dB, no alarm |
+| 1600–1683 | walking at 3 m (before A), test ends at 1683 | drop 6 dB, movement in ≈ 8 of 10 s | drop 3–4 dB, movement in ≈ 2 of 10 s |
+
+- The calibration works: about 140 s of quiet room gave **no false alarms** on
+  either link, with a second person sitting still in the room, and walking was
+  detected clearly.
+- As in test 3, the in-line layout does not tell 3 m from 9 m: A, in the same
+  room, reacts to a person anywhere in the room (reflections), and B's long
+  link reacts only weakly. At 3 m both links reacted, as expected.
+- The live page on A (`http://lab8-esp32.local/`) after calibration: dashed lines are each link's
+  empty-room baseline and movement threshold; grey bands are B's PIR (constantly active next to
+  the fridge in the kitchen).
+
+  ![Live movement page on board A at http://lab8-esp32.local after calibration (dark mode; plain HTTP, so the browser shows "Not Secure")](lab8_screenshot_move_monitor_web_page.png)
+- So the calibrated monitor answers **"is someone moving?"** reliably; **"where?"**
+  needs links with separate paths, as in the V layout (test 2).
+- B's PIR in the kitchen was active the whole time (warm surfaces), so it was no
+  reference here.
+
+- Next step (FR-RADAR-4): repeat the calibrated test in the V layout; add board C as a third link. flag movement
   when the median drops ≥ 2 dB below the baseline or the spread exceeds the
   baseline's maximum.
 - Power during the monitor: B ≈ 0.67–0.77 W (≈ 130–145 mA) on the power bank.
@@ -322,6 +404,8 @@ power. A prints one `MOVE` line per second for both links.
 ![Board B (echo server) on the power bank, first placement on the living-room sideboard: PIR, INA226 and role jumper](lab8_photo_of_echo_server_in_livingroom_on_sideboard.jpg)
 
 ![Board B on the power bank, test placement on the washing machine (bathroom), about 14 m from the router](lab8_photo_of_echo_server_in_bathroom_on_washing_machine.jpg)
+
+![Board B on the power bank on the kitchen counter next to the fridge (tests 3 and 4), about 14 m from the router](lab8_photo_of_echo_server_on_kitchen_counter.jpg)
 
 ## Security
 
