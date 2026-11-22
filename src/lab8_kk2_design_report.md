@@ -10,7 +10,7 @@ This report follows the six KK2 steps. It gives the overview and links to the
 detailed documents in the repository (all in `src/`):
 
 | Document | Content |
-|---|---|
+|-----------------------------------|-----------------------------------------------------------------|
 | `lab8_wifi.md` | Plan, feature list and status, hardware, photos |
 | `lab8_wifi_requirements.md` (+ PDF) | Requirements with IDs, priority, verification and status |
 | `lab8_wifi_rt_design.md` (+ PDF) | Real-time design: time-triggered on NTP, radar phases |
@@ -31,9 +31,9 @@ detect movement: the Passive Mechanical Wi-Fi Radar (PMWR).**
 
 ### Background
 
-Recent work in RF sensing has shown that commercial cellular networks (4G and
-5G) can be used as passive radar to detect drones without emitting any new
-signals: moving objects disturb the radio waves that are already there, and
+I read an article about detecting drones with 4G and 5G networks: recent work
+in RF sensing has shown that commercial cellular networks can be used as
+passive radar without emitting any new signals. Moving objects disturb the radio waves that are already there, and
 the disturbance can be measured. Everyday wireless infrastructure becomes a
 sensor.
 
@@ -52,7 +52,7 @@ target, and basic localisation.
 ### Core concept: passive bistatic sensing
 
 | Part | Role |
-|---|---|
+|------|----------------------------------------------------------------------------------------------|
 | **Illuminator** | A standard, stationary Wi-Fi router fills the area with 2.4 GHz radio waves (its beacons, about ten per second). The radar itself does not need to transmit. The PMWR is locked to 2.4 GHz because of the platform (see the limits below). |
 | **Disturbance** | A person (or a drone) moving through the area absorbs, reflects and scatters the waves. Rather than the absolute signal strength, which depends on size, distance and walls, the system looks at the **RSSI variance (jitter)**: the rapid fluctuations that movement causes, compared with an empty-room baseline. |
 | **Mechanical beam forming** | A Wi-Fi antenna receives from all directions. A half-cylinder reflector (120 g paper lined with 0.014 mm aluminium kitchen foil, about 8 skin depths at 2.4 GHz, λ/4 = 3.1 cm from the antenna) makes the receiver directional: it favours one side and dampens the rear. Turning it with the motor sweeps this listening direction around the room. |
@@ -84,7 +84,7 @@ sensor.
 ## 1.2 Target group
 
 | Group | Need |
-|---|---|
+|-------------------------------------------|---------------------------------------------------------|
 | Students and makers learning embedded Wi-Fi and Wi-Fi sensing | A step-by-step, tested and documented reference |
 | Home owners | Detect movement without cameras, locally and privately |
 | Owners of remote buildings (e.g. a friggebod) | Presence and climate monitoring, reached safely over VPN |
@@ -110,7 +110,7 @@ The full specification is `lab8_wifi_requirements.md`: hardware (HW), functional
 ## 2.1 Main functions and core value
 
 | Area | Main function | Status |
-|---|---|---|
+|------------------|-----------------------------------------------------------------|-----------------|
 | Scan (8.1–8.3) | List nearby 2.4 GHz networks, mark open ones | Verified |
 | Connect (8.4, 8.4b) | Join the router, check internet every 30 s, credentials stored safely | Verified |
 | Web status (8.5) | Local read-only status page and JSON, NTP clock | Verified |
@@ -126,7 +126,7 @@ The full specification is `lab8_wifi_requirements.md`: hardware (HW), functional
 1. The controller shall scan nearby networks every 15 s without joining any (FR-SCAN-1).
 2. Internet access shall be checked every 30 s; a lost connection shall be re-established automatically (FR-CONN-3, FR-CONN-4).
 3. The web page shall show connection data, scan results and NTP time, refreshed every 15 s (FR-WEB-1…5).
-4. The controller shall log its current, voltage and power with an INA226; the echo server is measured in a separate run by moving the same cable (HW-3, FR-BW-7).
+4. Each board shall measure its own current, voltage and power with an INA226 (HW-3, FR-BW-7).
 
 ## 2.3 Non-functional requirements (examples)
 
@@ -137,7 +137,7 @@ The full specification is `lab8_wifi_requirements.md`: hardware (HW), functional
 ## 2.4 User experience
 
 | Aspect | Design |
-|---|---|
+|---------|-------------------------------------------------------------------------------------------|
 | Feel | Quiet and trustworthy: read-only, no secrets shown, clear OK/FAIL |
 | Usability | Visible display (LCD) at the rig; full detail in the browser; no app needed |
 | Where | Locally: LCD and Serial at the rig, web page on the home network, printout on paper |
@@ -145,7 +145,7 @@ The full specification is `lab8_wifi_requirements.md`: hardware (HW), functional
 ## 2.5 Platform
 
 | Item | Choice |
-|---|---|
+|-------------|---------------------------------------------------------------------------------------|
 | User interface | LCD 16×2 (I2C), yellow status LED, Serial (setup menu), web browser, printer |
 | Operating system | FreeRTOS, through the Arduino-ESP32 core (ESP-IDF underneath) |
 | Communication | Wi-Fi 802.11 b/g/n 2.4 GHz; HTTP, mDNS, NTP, raw TCP 9100 (print), UDP (8.6); I2C (two buses) and one-wire to sensors |
@@ -155,7 +155,7 @@ The full specification is `lab8_wifi_requirements.md`: hardware (HW), functional
 ## 2.6 Development, verification and quality tools
 
 | Area | Tool |
-|---|---|
+|------|-----------------------------------------------------------------------------------------------|
 | Verification | Requirement IDs traced to tests (requirements spec, section 7) |
 | Test | Python smoke tests over Serial and HTTP: `lab8_wifi_scan_smoke_test.py`, `lab8_wifi_connect_smoke_test.py`, `lab8_wifi_web_status_smoke_test.py`; manual tests on the board (router off/on) |
 | Quality | One branch and pull request per step with test checklist; PR log; `git status` before every commit |
@@ -168,17 +168,19 @@ The full specification is `lab8_wifi_requirements.md`: hardware (HW), functional
 
 ![Motor and sensor test set-up: ESP32, LCD, INA226 (R100 shunt), DHT11, Qwiic chain with Modulino, TMAG5273 and SHT31-D, ULN2003 with motor, the cut USB cable and the index magnet](lab8_photo_of_motor_and_sensor_test_board_a.jpg)
 
+![Board A (top: LCD, sensors, motor driver) and board B (bottom: own INA226 cable, PIR, 10 kΩ pull-ups), both fed from the KVM switch](lab8_photo_of_board_a_and_board_b.jpg)
+
 ![Sensor wiring, board A](lab8_wiring_sensors.svg)
 
 ## 3.1 Sensors
 
 | Sensor | Bus / pin | Place | Role |
-|---|---|---|---|
+|-------------------------|--------------------------|---------------|----------------------------------|
 | Arduino Modulino Thermo (HS3003) | I2C `Wire1` (GPIO 47/21), 0x44 | Inside the box | Box climate and antenna conditions |
 | DHT11 | One-wire, GPIO 14 | Above the box | Room reference |
 | SHT31-D (with heater) | I2C `Wire1`, 0x45 | Above the steam | Steam humidity, recovery after drying |
 | TMAG5273 3D Hall sensor | I2C `Wire1`, 0x35 | At the motor | Index (home position) for the reflector |
-| INA226 power monitor | I2C `Wire` (LCD bus, GPIO 1/2), 0x44 | In the USB cable's 5 V wire | Current, voltage and power of board A; board B is measured once by moving the cable (8.6) |
+| INA226 power monitor (A and B) | I2C `Wire` (GPIO 1/2), 0x44; on B with its own 10 kΩ pull-ups | In each USB cable's 5 V wire | Current, voltage and power of each board |
 | HC-SR501 PIR (board B) | GPIO, 5 V supply | In the room | Ground truth for movement |
 | The ESP32's own radio | – | – | RSSI of beacons and packets |
 
@@ -190,9 +192,9 @@ the Modulino on the sensor bus.
 ## 3.2 Actuators
 
 | Actuator | Use |
-|---|---|
+|-------------------------------------|---------------------------------------------------------------|
 | Yellow LED (GPIO 13) | On while connecting or checking |
-| 28BYJ-48 stepper motor + ULN2003 (GPIO 4–7) | Turns the reflector around the antenna (radar); 5 V taken before the INA226 shunt |
+| 28BYJ-48 stepper motor + ULN2003 (GPIO 4–7) | Turns the reflector around the antenna (radar); 5 V from its own USB-C power cable (shared GND), not through the INA226 |
 | HP printer (over Wi-Fi Direct) | Paper scan report |
 
 ## 3.3 User interface
@@ -221,7 +223,7 @@ wavelength λ (≈ 12.3 cm at 2.4 GHz):
 $$\theta_{beam} \approx 70^\circ \cdot \frac{\lambda}{D}$$
 
 | Design | Aperture D | Beam |
-|---|---|---|
+|-------------------------------------|---------------|------------------------------------------------|
 | Half-cylinder, Ø 6.2 cm (the rig) | ≈ 6 cm, smaller than λ | Broad lobe: the front is a few dB stronger than the back |
 | Closed foil cylinder with a narrow slot | A few mm to λ/4 | Not narrower: a small opening **widens** the beam, and openings much below λ/2 ≈ 6 cm pass little 2.4 GHz; the closed metal also detunes the antenna |
 | Parabolic trough, antenna at the focus | ≈ 25–30 cm (2–2.5 λ) | About 30–35° in the turning plane |
@@ -233,7 +235,7 @@ direction can still be estimated precisely, because the estimate does not
 depend on the beam being narrow:
 
 | Method | How | Hardware change |
-|---|---|---|
+|------------|--------------------------------------------------------------------------|--------------|
 | Curve fit | A Gaussian fitted to all 24 angles; its centre θ₀ is located much more precisely than the lobe is wide | None |
 | Edge (null) detection | The signal drops sharply where a foil edge passes the direction to the router; the midpoint of the two edges gives the direction | None; finer steps near the edges |
 | Averaging | Median of about 40 beacons per angle, several sweeps | None |
@@ -260,7 +262,7 @@ trough or external antenna, section 5.10).
 ## 4.2 Code
 
 | File | Step | Content |
-|---|---|---|
+|------------------------------------|-----------|----------------------------------------------------|
 | `src/lab8_wifi_scan.cpp` | 8.1–8.3 | Scan, LCD cycling, Serial report |
 | `src/lab8_wifi_connect.cpp` | 8.4, 8.4b | Connect, internet check, NVS credentials |
 | `include/lab8_credentials.h` | 8.4b | Setup menu, XOR obfuscation, NVS |
@@ -280,7 +282,7 @@ function, and `setup()`/`loop()`.
 **Requirements implemented:**
 
 | ID | Requirement |
-|---|---|
+|---------------|-------------------------------------------------------------------------------------|
 | FR-CONN-1 | Join the configured network as host name `lab8-esp32` |
 | FR-CONN-2 | Report IP, gateway, subnet, DNS, RSSI and channel; name and IP on the LCD |
 | FR-CONN-3 | Check internet access every 30 s (HTTP 204 = OK) |
@@ -293,7 +295,7 @@ function, and `setup()`/`loop()`.
 **Structure:**
 
 | Part | Content |
-|---|---|
+|---------------|-------------------------------------------------------------------------------------|
 | Header comment | Purpose, hardware (LCD on GPIO 1/2, LED on GPIO 13), the Serial protocol the smoke test parses |
 | Constants | Pins, host name `lab8-esp32`, check URL, timeouts and the 30 s interval |
 | LCD and Serial helpers | `showOnLcd()`, `formatForLcd()`, `printSsidAsHex()`, `printSsidAsText()`, `getWifiStatusName()` |
@@ -424,7 +426,7 @@ scan and an NTP clock.
 **Requirements implemented:**
 
 | ID | Requirement |
-|---|---|
+|--------------|--------------------------------------------------------------------------------------|
 | FR-WEB-1 | Status page at `http://<ip>/`, refreshed every 15 s |
 | FR-WEB-2 | The same data as JSON at `/api/status` |
 | FR-WEB-3 | Background scan every 60 s without disconnecting |
@@ -581,14 +583,14 @@ void loop() {
 Scanning is done in two ways:
 
 | Program | Scan | Why |
-|---|---|---|
+|-------------------------|-----------------------------------------|----------------------------------|
 | `lab8_wifi_scan.cpp` (8.1–8.3) | **Blocking**, every 15 s, not connected to any network | Simple; nothing else has to run meanwhile |
 | `lab8_wifi_web_status.cpp` (8.5) | **Asynchronous**, every 60 s, while staying connected | The web server must keep answering during the scan |
 
 **Requirements implemented:**
 
 | ID | Requirement |
-|---|---|
+|---------------|-------------------------------------------------------------------------------------|
 | FR-SCAN-1 | Scan nearby 2.4 GHz networks every 15 s without joining any |
 | FR-SCAN-2 | Report each network: SSID as hex and text, RSSI, channel, security |
 | FR-SCAN-3 | LCD: number of networks, then each SSID, RSSI and channel |
@@ -702,7 +704,7 @@ void collectScanIfDone() {
 ## 4.6 Key functions in the other programs
 
 | File | Key functions | Requirements |
-|---|---|---|
+|-------------------|---------------------------------------------------------------------|------------|
 | `include/lab8_credentials.h` | `loadCredentials()`, `putSecret()` / `getSecret()`, `xorWithKeystream()`, `runSetupMenu()`, `setupRequested()`, `eraseCredentials()` | FR-CRED-1…4, SEC-1…3 |
 | `src/lab8_wifi_web_status.cpp` (further) | `buildStatusJson()` / `escapeJson()`, `startClock()` / `reportClockIfNewlySet()`, `safeSsid()` | FR-WEB-2, FR-WEB-5, NFR-CLK-1 |
 | `src/lab8_sensor_test.cpp` | `scanSensorBus()`, `readHs3003()`, `readDht11()` | HW-4, HW-8 |
@@ -714,7 +716,7 @@ The full, commented source is in the repository.
 ## 4.7 Results
 
 | Test | Result |
-|---|---|
+|-------------|---------------------------------------------------------------------------------------|
 | Scan smoke test | PASS, 22 networks, 2 open |
 | Connect smoke test | PASS, HTTP 204 in 82–300 ms |
 | Web smoke test | PASS; no password in page or JSON; security headers present |
@@ -723,14 +725,14 @@ The full, commented source is in the repository.
 | Three hygrometers | HS3003 22.5 °C / 37 %, SHT31-D 22.3 °C / 36 %, DHT11 21.2 °C / 38 % RH |
 | Motor | 4076 half steps per turn in 12.2 s, back to 0 every time |
 | Index (TMAG5273) | Background 0.04 mT; the magnet gives up to 80 mT per axis |
-| Power (INA226) | At rest 5.27 V / 86–90 mA / ≈ 460 mW; motor via the shunt 294 mA (max 390) / 1.5 W; motor before the shunt 98 mA / 508 mW. Preliminary: more data needed for KK3 (longer logging, Wi-Fi on, motor on its own supply) |
+| Power (INA226) | At rest 5.27 V / 85–90 mA / ≈ 450–470 mW. Motor through the shunt: 294 mA (max 390) / 1.5 W, and the voltage dipped to 5.11 V. Motor 5 V tapped before the shunt: ESP32 98 mA / 508 mW, still a 0.16 V dip (shared 1 m cable). Motor on its own USB-C cable: ESP32 98 mA / 514 mW, dip only 0.03 V (5.27 → 5.24 V). Board B (no LCD, no sensors): 5.30 V / 41.6 mA / 221 mW at rest. Preliminary: more data needed for KK3 (longer logging, Wi-Fi on) |
 
 ![Serial monitor: motor and sensor test (I2C scan, index, power, three hygrometers)](lab8_screenshot_motor_and_sensor_test_monitor.png)
 
 ## 4.8 Problems and how they were solved
 
 | Problem | Solution |
-|---|---|
+|---------------------------------|-------------------------------------------------------------------|
 | Wi-Fi passwords would end up in the source code and on GitHub | Typed in once over Serial, stored in NVS, XOR-obfuscated with a key from the chip's MAC; AES with an eFuse key documented as the next level |
 | SSIDs come from strangers and may contain HTML or script | Every SSID escaped for HTML and JSON; no JavaScript; Content-Security-Policy |
 | SSIDs with hidden or non-printable characters | Printed both as text and as hex |
@@ -739,7 +741,8 @@ The full, commented source is in the repository.
 | LCD bus at 5 V, sensors at 3.3 V | Separate 3.3 V I2C bus (`Wire1`) with 10 kΩ pull-ups; the Modulino has none of its own |
 | Modulino and SHT31-D share the address 0x44 | SHT31-D set to 0x45 with its address jumper |
 | The power monitor did not answer; the humidity of the Modulino read 1–2 % | The boards were INA226 (I2C), not INA229 (SPI), and at 0x44: the same address as the Modulino. Moved to the LCD bus, found by its ID |
-| The motor's current made the power reading jump (294 vs 86 mA) | Motor 5 V taken before the shunt; a separate supply later also removes the 0.16 V dip |
+| The motor's current made the power reading jump (294 vs 86 mA) and the voltage dip (0.16 V) | First the motor's 5 V was taken before the shunt (not measured, dip remained); then the motor got its own USB-C power cable from the KVM switch, with a shared GND: dip 0.03 V. A USB-C power-only cable gives 0 V from a USB-C charger (no CC resistor), so it is fed from a port that always gives 5 V |
+| Board B's INA226 not found on the I2C bus | Swapping the INA226 modules showed the modules were fine. Board B has no LCD, so nothing pulled the bus up: 10 kΩ pull-ups added from GPIO 1/2 to 3V3. The last fault was a broken short jumper wire on SCL (GPIO 2): the line stayed at 3.3 V while the program ran |
 | Measuring power without breaking Serial | Only the 5 V wire is cut through a window in the cable; data and ground untouched |
 | Reflector angle: the motor axle is blocked at both ends | Index with a magnet and a 3D Hall sensor instead of an absolute encoder; self-calibration of steps per turn |
 | `pio.exe` blocked by Windows Application Control | PlatformIO run through Python (`python -m platformio`) |
@@ -755,7 +758,7 @@ The full, commented source is in the repository.
 ## 5.2 Material choices
 
 | Part | Rig (today) | Prototype |
-|---|---|---|
+|---------|-----------------------------------------|-------------------------------------------------|
 | Enclosure | Shoebox | 3D-printed PETG box, ventilated for the climate sensor |
 | Wiring | Breadboard and jumper wires | Custom PCB with JST-SH (Qwiic) connectors |
 | Reflector | 120 g paper cylinder with kitchen foil, on a paper cup adapter with a cardboard-reinforced bottom | PETG cylinder with aluminium tape, same λ/4 geometry |
@@ -773,23 +776,29 @@ e-waste.
 
 Bought for the rig (prices in kr, incl. VAT):
 
-| Qty | Part | Use | Price (kr) | Source |
-|---|---|---|---|---|
-| 2 | ESP32-S3 board, Freenove (2-pack) | Board B and C | 279 | amazon.se |
-| 2 | INA226 board, 100 mΩ shunt, + Qwiic 150 mm cable to pins | Power measurement on A (the second is a spare) | 217 | amazon.se |
-| 1 | Arduino Modulino Thermo (HS3003) | Box climate | 89 | Kjell & Company |
-| 1 | SHT31-D with heater (Qwiic) | Steam humidity | 219 | Electrokit |
-| 1 | TMAG5273 3D Hall sensor (Qwiic) | Radar index | 92 | Electrokit |
-| 1 | Neodymium magnet Ø5×3 mm | Radar index | 24 | Electrokit |
-| 1 | Qwiic cable 100 mm | Sensor chain | 24 | Electrokit |
-| 1 | Qwiic cable 300 mm | Sensor chain | 38 | Electrokit |
-| 1 | Qwiic cable 400 mm | Sensor chain (SHT31-D) | 39 | Electrokit |
-| 1 | USB-A to USB-C cable, 1 m | Cut for the INA226 shunt | 159 | Kjell & Company |
-| 2 | Breadboard | For the extra ESP32 boards | 69 | Kjell & Company |
-| 40 | Jumper wires male–male, 20 cm | Wiring | 72 | Kjell & Company |
-| 1 | Extra electronics kit | Spare parts | 209 | Kjell & Company |
-| 1 | Freenove ESP32-S3 starter kit | Board A (ESP32-S3 N8R8), LCD 16×2 + PCF8574T, DHT11, HC-SR501 PIR, 28BYJ-48 + ULN2003, resistors, LED | 699 | amazon.se |
-| | **Total for the project** | | **2 229** | |
+| Qty | Item | Description | Use | Price (kr) | Source |
+|------|--------------|-----------------------------------------------------|------------------|------|---------|
+| 2 | ESP32-S3 | Freenove ESP32-S3 WROOM development board (2-pack), Wi-Fi 2.4 GHz | Board B and C | 279 | amazon.se |
+| 2 | INA226 | Current, voltage and power monitor board (I2C), 100 mΩ shunt; with Qwiic 150 mm cable to pins | Power measurement on A and B | 217 | amazon.se |
+| 1 | Modulino Thermo | Arduino temperature and humidity sensor board, HS3003 (I2C, Qwiic) | Box climate | 89 | Kjell & Company |
+| 1 | SHT31-D | Temperature and humidity sensor board with built-in heater (I2C, Qwiic) | Steam humidity | 219 | Electrokit |
+| 1 | TMAG5273 | 3D Hall-effect magnetic sensor board (I2C, Qwiic) | Radar index | 92 | Electrokit |
+| 1 | Magnet | Neodymium disc magnet Ø5×3 mm | Radar index | 24 | Electrokit |
+| 1 | Qwiic cable | JST-SH 4-pin cable, 100 mm | Sensor chain | 24 | Electrokit |
+| 1 | Qwiic cable | JST-SH 4-pin cable, 300 mm | Sensor chain | 38 | Electrokit |
+| 1 | Qwiic cable | JST-SH 4-pin cable, 400 mm | Sensor chain (SHT31-D) | 39 | Electrokit |
+| 1 | USB cable | USB-A to USB-C cable, 1 m | Cut for the INA226 shunt | 159 | Kjell & Company |
+| 2 | Breadboard | Solderless breadboard | For the extra ESP32 boards | 69 | Kjell & Company |
+| 40 | Jumper wires | Male–male jumper wires, 20 cm | Wiring | 72 | Kjell & Company |
+| 1 | Electronics kit | Assorted components (Kjell) | Spare parts | 209 | Kjell & Company |
+| 1 | Freenove kit | Freenove ESP32-S3 starter kit; the parts used are listed below | See below | 699 | amazon.se |
+| (1) | ESP32-S3 | Freenove ESP32-S3 WROOM N8R8 development board (in the kit) | Board A | (kit) | |
+| (1) | LCD 16×2 with PCF8574T | Character display with I2C backpack (in the kit) | Status and values | (kit) | |
+| (1) | DHT11 | Temperature and humidity sensor module (in the kit) | Room reference | (kit) | |
+| (1) | HC-SR501 | Passive infrared (PIR) motion sensor (in the kit) | Ground truth on board B | (kit) | |
+| (1) | 28BYJ-48 + ULN2003 | 5 V stepper motor with Darlington driver board (in the kit) | Turns the reflector | (kit) | |
+| – | Resistors, LED | 10 kΩ resistors, yellow LED (in the kit) | Pull-ups, status LED | (kit) | |
+| | **Total for the project** | | | **2 229** | |
 
 Mechanics from home (no extra cost): shoebox, paper cup, 120 g paper, cardboard, kitchen
 foil.
@@ -811,10 +820,10 @@ and motor. The features below are designed and documented, but deliberately
 left for KK3 and the prototype:
 
 | Feature | Why | Planned for |
-|---|---|---|
+|-----------------------------------|----------------------------------------------------------|-------|
 | Radar phase 1: reflector on the motor, direction to the router | The lab goal; the hardware is verified | KK3 |
 | Graphs on the web page (8.5b) | See trends in RSSI, climate and power without a PC | KK3 |
-| Node B: echo server and PIR (8.6) | Bandwidth test (power measured once with A's INA226 cable), and ground truth for movement | KK3 |
+| Node B: echo server and PIR (8.6) | Bandwidth test with power on both boards, and ground truth for movement (INA226 and PIR already wired on B) | KK3 |
 | DHCP reservations | Fixed addresses, so the boards always find each other | KK3 |
 | Data collector with ACK/NACK and store-and-forward | No measurement lost when Wi-Fi drops | Prototype |
 | Node C, radar phase 2 | Find *where* the movement is, not only that it happened | Prototype |
@@ -830,7 +839,7 @@ are one-time costs.
 ## 5.8 Safety aspects
 
 | Area | Aspect | Measure |
-|---|---|---|
+|----------|-------------------------------|-----------------------------------------------------------|
 | Electrical | USB 5 V only; the cut USB cable | Insulated joints, strain relief, test on a charger before a PC |
 | Mechanical | Turning reflector | Slow (≤ 15 rpm), low torque, inside the enclosure |
 | Heat | Steam and hot water in the humidity experiment | Stable thermos, sensor above the steam, no water near electronics |
@@ -859,7 +868,7 @@ building, with presence detection without cameras.
 # 6. Step 6 – Submission
 
 | Item | Where |
-|---|---|
+|--------------|--------------------------------------------------------------------------------------|
 | Design description | This report and the documents in section 0 |
 | Code | `src/` and `include/`, commented, with references to the requirement IDs and the plan |
 | Git repo | `TorstenssonGIT/ESP32-freenove-projects`, branch and pull request per step |

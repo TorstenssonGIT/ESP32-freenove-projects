@@ -37,19 +37,19 @@ I = inspection (code, files or documentation).
 
 # 3. Hardware requirements
 
-| ID | Requirement | Pri | Verif. | Status |
-|-----|------------------------------|--|---|--------|
-| HW-1 | The controller shall use the existing LCD 16x2 with PCF8574T on I2C (SDA GPIO 1, SCL GPIO 2, address 0x27) and the yellow LED on GPIO 13 via a series resistor. | M | I | Verified |
-| HW-2 | The echo server shall run on USB power alone (power bank or cable) after its first setup. | M | M | Planned |
-| HW-3 | The controller (A) shall have an INA226 power monitor (I2C, 100 mΩ shunt, VCC 3.3 V) in series with the 5 V wire of its USB cable (only VBUS cut through a window; GND, data wires and shield untouched), with VBS on IN−, on the LCD bus (GPIO 1/2) at 0x44, since 0x44 is taken by the Modulino on the sensor bus. The echo server (B) has no permanent power monitor; it is measured once by moving the same cable and module to it (FR-BW-7). | S | M | Verified on A (5.27 V, 86–90 mA, ≈ 455–470 mW at rest) |
-| HW-4 | The 3.3 V sensors shall have their own I2C bus (`Wire1`: SDA GPIO 47, SCL GPIO 21, 100 kHz, 10 kΩ pull-ups to 3V3), separate from the 5 V LCD bus, chained over Qwiic cables with a total length under 1 m (10 + 10 + 40 cm). The Arduino Modulino Thermo (HS3003, 0x44) shall sit inside the box and log the box climate and antenna conditions. | S | M | Verified (Modulino) |
-| HW-8 | The kit's DHT11 (DATA GPIO 14, 3.3 V, 10 kΩ pull-up on the module) shall sit above the box as the room reference, to verify that the SHT31-D has recovered after each steam condition: the offset SHT31-D − DHT11 after drying shall be within ±2 % RH of the offset before. | S | M | Verified (wiring, readings); check Planned |
-| HW-9 | An SHT31-D with heater (address 0x45 by its address jumper, last in the Qwiic chain on a 40 cm cable) shall measure the humidity above the steam. | S | M | Verified (reading; heater not yet used) |
-| HW-10 | A TMAG5273 3D Hall sensor (0x35) on the same bus shall detect the reflector's index magnet. | C | M | Verified (background 0.04 mT, magnet up to 80 mT per axis) |
-| HW-11 | Board B shall have an HC-SR501 PIR sensor (VCC 5 V, OUT GPIO 14, jumper on H, shortest hold time) as ground truth for movement; readings shall be ignored for 60 s after power-on. | C | M | Planned |
-| HW-5 | GPIO 19/20 (native USB), the boot pins (0, 3, 45, 46) and the pins used by flash and PSRAM shall not be used for wiring. | M | I | Verified |
-| HW-6 | During power measurement the measured cable shall be the board's only power source. | M | M | Planned |
-| HW-7 | The radar shall use a 28BYJ-48 stepper motor with ULN2003 driver (IN1–IN4 on GPIO 4–7, camera unplugged; 5 V taken before the INA226 shunt so the motor is not measured, later an own supply; shared GND) turning a cylindrical reflector (Ø 6.2 cm, foil on 180°, ≥ 6 cm high) around the antenna; see `lab8_radar_reflector.md`. | C | M | Motor Verified (4076 half steps, 12.2 s per turn); reflector Planned |
+| ID | Item | Description | Requirement | Pri | Verif. | Status |
+|-----|------|---------|------------------------------|--|---|--------|
+| HW-1 | LCD 16×2 with PCF8574T, LED | Character display with I2C backpack; yellow status LED | The controller shall use the existing LCD 16x2 with PCF8574T on I2C (SDA GPIO 1, SCL GPIO 2, address 0x27) and the yellow LED on GPIO 13 via a series resistor. | M | I | Verified |
+| HW-2 | ESP32-S3 (board B) | Freenove ESP32-S3 WROOM N16R8 development board, Wi-Fi 2.4 GHz | The echo server shall run on USB power alone (power bank or cable) after its first setup. | M | M | Verified (runs on its own USB cable with INA226) |
+| HW-3 | INA226 | Current, voltage and power monitor board (I2C), 100 mΩ shunt | The controller (A) and the echo server (B) shall each have an INA226 power monitor (I2C, 100 mΩ shunt, VCC 3.3 V) in series with the 5 V wire of their USB cable (only VBUS cut through a window; GND, data wires and shield untouched), with VBS on IN−, on the bus at GPIO 1/2 (address 0x44). On A the bus is shared with the LCD (0x44 is taken by the Modulino on the sensor bus); B has no LCD and needs its own 10 kΩ pull-ups from GPIO 1/2 to 3V3. | S | M | Verified: A 5.27–5.29 V, 84–90 mA, ≈ 445–470 mW at rest; B 5.30 V, 41.6 mA, 221 mW at rest |
+| HW-4 | Modulino Thermo (HS3003) | Arduino temperature and humidity sensor board (I2C, Qwiic) | The 3.3 V sensors shall have their own I2C bus (`Wire1`: SDA GPIO 47, SCL GPIO 21, 100 kHz, 10 kΩ pull-ups to 3V3), separate from the 5 V LCD bus, chained over Qwiic cables with a total length under 1 m (10 + 10 + 40 cm). The Arduino Modulino Thermo (HS3003, 0x44) shall sit inside the box and log the box climate and antenna conditions. | S | M | Verified (Modulino) |
+| HW-8 | DHT11 | Temperature and humidity sensor module (one-wire) | The kit's DHT11 (DATA GPIO 14, 3.3 V, 10 kΩ pull-up on the module) shall sit above the box as the room reference, to verify that the SHT31-D has recovered after each steam condition: the offset SHT31-D − DHT11 after drying shall be within ±2 % RH of the offset before. | S | M | Verified (wiring, readings); check Planned |
+| HW-9 | SHT31-D | Temperature and humidity sensor board with built-in heater (I2C, Qwiic) | An SHT31-D with heater (address 0x45 by its address jumper, last in the Qwiic chain on a 40 cm cable) shall measure the humidity above the steam. | S | M | Verified (reading; heater not yet used) |
+| HW-10 | TMAG5273 | 3D Hall-effect magnetic sensor board (I2C, Qwiic), with Ø5×3 mm magnet | A TMAG5273 3D Hall sensor (0x35) on the same bus shall detect the reflector's index magnet. | C | M | Verified (background 0.04 mT, magnet up to 80 mT per axis) |
+| HW-11 | HC-SR501 PIR | Passive infrared (PIR) motion sensor | Board B shall have an HC-SR501 PIR sensor (VCC 5 V, OUT GPIO 14, jumper on H, shortest hold time) as ground truth for movement; readings shall be ignored for 60 s after power-on. | C | M | Wired (VCC, OUT GPIO 14, GND; jumper on H); test Planned |
+| HW-5 | ESP32-S3 (all boards) | Freenove ESP32-S3 WROOM development boards (A: N8R8, B: N16R8, C) | GPIO 19/20 (native USB), the boot pins (0, 3, 45, 46) and the pins used by flash and PSRAM shall not be used for wiring. | M | I | Verified |
+| HW-6 | USB power cable | USB cable that powers the measured board | During power measurement the measured cable shall be the board's only power source. | M | M | Planned |
+| HW-7 | 28BYJ-48 + ULN2003, reflector | 5 V stepper motor with Darlington driver board; foil-and-paper half-cylinder | The radar shall use a 28BYJ-48 stepper motor with ULN2003 driver (IN1–IN4 on GPIO 4–7, camera unplugged; 5 V from its own USB-C power cable, not through the INA226; shared GND) turning a cylindrical reflector (Ø 6.2 cm, foil on 180°, ≥ 6 cm high) around the antenna; see `lab8_radar_reflector.md`. | C | M | Motor Verified (4076 half steps, 12.2 s per turn; own supply: dip 0.03 V); reflector Planned |
 
 # 4. Functional requirements
 
@@ -102,7 +102,7 @@ I = inspection (code, files or documentation).
 | FR-BW-4 | Per size, the controller shall report min, median, average and max round-trip time (µs), losses and throughput (2 × size / average RTT) on Serial (`BW_RESULT`), the LCD and the web page. | M | T | Planned |
 | FR-BW-5 | The test shall run in router mode or direct mode (echo server as access point), chosen in the menu. | M | M | Planned |
 | FR-BW-6 | The controller shall read the echo server's uptime before and after each series over UDP and mark the series unreliable if the echo server restarted. | M | T | Planned |
-| FR-BW-7 | The controller shall log its current, voltage and power with its INA226 during the test. The echo server's power shall be measured in a separate run, with the INA226 cable moved to board B, idle and while echoing; both results shall be reported with the test results. | S | T | Planned |
+| FR-BW-7 | Each board shall measure its own current, voltage and power with its INA226, at the same time. The echo server shall print its values on Serial and send them to the controller in its UDP status message; the controller shall report both with the test results. | S | T | Planned (both power monitors verified) |
 
 ## 4.6 Experiments (8.6b, 8.6c)
 
@@ -204,7 +204,7 @@ I = inspection (code, files or documentation).
 # 8. Open items
 
 1. DHCP reservations for all three boards (NFR-NET-1).
-2. Wire board B's INA226 (HW-3); give the motor its own 5 V supply so the ESP32's voltage does not dip (5.27 → 5.11 V) while it turns (HW-7).
+2. Resolved: board B has its own INA226 cable (10 kΩ pull-ups on GPIO 1/2, since B has no LCD), so A and B are measured at the same time (HW-3, FR-BW-7); the motor has its own 5 V cable from the KVM switch, so the ESP32's voltage only dips 0.03 V while it turns (HW-7).
 3. Router checks not yet reported: CGNAT, WAN administration, admin password, WPA mode, WPS, guest network, firmware (SEC-10).
 4. Menu erase (FR-CRED-2) and wrong-password case not yet tested.
 5. mDNS works (`lab8-esp32.local` opens the page); check whether the router's DNS also resolves `lab8-esp32` (`nslookup`).

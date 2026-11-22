@@ -164,7 +164,7 @@ GPIO 4–7 now drive the motor.
 | SHT31-D (heater) | Same bus, last in the chain (40 cm) | 0x45 by address jumper; above the steam |
 | DHT11 (blue module, 4 pins) | DATA GPIO 14, VCC 3V3, GND | Room reference; 10 kΩ pull-up on the module |
 | INA226 power monitor | LCD bus `Wire`: SDA GPIO 1, SCL GPIO 2, VCC 3V3 | 0x44 (taken by the Modulino on `Wire1`); VBUS of the USB cable through the 100 mΩ shunt, VBS to IN− |
-| 28BYJ-48 + ULN2003 | IN1–IN4 on GPIO 4–7 (camera unplugged); + from the INA226's IN+; − to GND | Not measured by the INA226; own supply later |
+| 28BYJ-48 + ULN2003 | IN1–IN4 on GPIO 4–7 (camera unplugged); + from its own USB-C power cable; − to GND (shared) | Not measured by the INA226; voltage dip while turning 0.03 V |
 
 Wiring: `lab8_wiring_sensors.svg`. Test: `lab8_motor_and_sensor_test.cpp`.
 
@@ -275,6 +275,8 @@ and saved in the ESP32's flash memory (NVS).
 ![Motor and sensor test: board A with INA226, DHT11, Qwiic chain (Modulino, TMAG5273, SHT31-D) and ULN2003 with motor](lab8_photo_of_motor_and_sensor_test_board_a.jpg)
 
 ![Serial monitor: motor and sensor test](lab8_screenshot_motor_and_sensor_test_monitor.png)
+
+![Board A and board B: B with its own INA226 cable and the PIR](lab8_photo_of_board_a_and_board_b.jpg)
 
 ## Security
 
