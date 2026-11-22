@@ -545,10 +545,55 @@ Layout: links form a V from the router. A ≈ 4 m from the router, B on the wash
 ### Notes
 - No credentials, SSIDs or MAC addresses in this PR.
 
+## Lab 8: movement monitor tests 2–4, empty-room calibration, live web page with graphs
+
+### What
+- `src/lab8_bandwidth.cpp`: empty-room calibration (`k`, see below), and board A serves a live movement page at `http://lab8-esp32.local/` (or A's IP): three status boxes (link A, link B, PIR at B), graphs of RSSI and spread for the last 3 minutes with the threshold and PIR bands, updated every second. `/api/move` gives the same data as JSON. Read-only, local subnet only, CSP allows script only from the ESP32. The monitor starts by itself after the boot series.
+- `src/lab8_wifi.md`: test 2 (B behind the washing machine, V layout) and test 3 (B in the kitchen, nearly in line with A), each with table, findings and chart; test 4 (calibrated); photo of B in the kitchen and a screenshot of the live page.
+- `src/lab8_chart_move_monitor_v_layout.png`: RSSI, spread and PIR for test 2.
+- `src/lab8_chart_move_monitor_inline_layout.png`: RSSI and spread for test 3.
+- `src/lab8_screenshot_move_monitor_web_page.png`: the live page on A after calibration.
+- `src/lab8_photo_of_echo_server_on_kitchen_counter.jpg`: B in the kitchen (tests 3 and 4), 1600 px, no metadata.
+- `src/lab8_wifi_requirements.md` + `.pdf`: FR-RADAR-4 status with tests 2–4.
+
+### Test 2 (both links at −62 dBm)
+| Phase | A–router | B–router | B's PIR |
+|---|---|---|---|
+| Still | −62 dBm | −62 dBm | quiet |
+| Across A's leg | −65…−68 dBm, spread up to 4.8 dB | unchanged | quiet |
+| Across B's leg | ≈ −66 dBm, flat | dip to −75 dBm, spread up to 5.0 dB | active |
+| Still, person at B | recovers | back to −61.5 dBm | active |
+
+### Test 3 (B ≈ 1 m beside the line router–A)
+| Phase | A–router | B–router |
+|---|---|---|
+| At the desk | −58.5 dBm | −65.5 dBm |
+| Crossing at 3 m | −62 dBm (−4 dB) | −66 dBm, small dips |
+| Crossing at 9 m | −67…−69 dBm (−10 dB) | −66 dBm, hardly moved |
+| Back at the desk | −56…−58 dBm | −65 dBm |
+
+A person within about 1 m of a board changes its link more (up to ≈ 10 dB) than a crossing (3–6 dB), like holding a car key to your head. Baselines must be taken with nobody near a board. Links 1 m apart on nearly the same line did not separate; the V layout did.
+
+### Calibration and test 4
+- `k` on A: 30 s to leave, 30 s empty-room recording. Per link: baseline level (median) and calm spread (max). Movement = level ≥ 3 dB below baseline, or spread > calm spread + 1 dB. `MOVE` lines get `a_drop`/`b_drop`; the web page shows baselines and thresholds as dashed lines.
+- Test 4 (kitchen layout): 140 s quiet with no false alarm; walking at 9 m: A drop 4–5 dB, B no alarm; walking at 3 m: A drop 6 dB, B drop 3–4 dB.
+- The calibrated monitor reliably answers "is someone moving?"; "where?" needs separate paths (V layout).
+
+### Problems solved
+- PIR at B triggered every 2.5–3 s with nobody there: warm air from a water-heated towel rail and a warm pipe (a mug over the PIR stopped it, so not radio). Fixed by aiming the PIR away.
+- Terminal copy lost most of the log: logged with `--filter log2file` instead.
+- B's PIR next to the fridge in the kitchen was active the whole time (warm surfaces); not a reference in tests 3 and 4.
+
+### Notes
+- Web page tested in a browser with test data (light, dark, phone width); on board A: page works at http://lab8-esp32.local/ with baselines and thresholds after calibration (screenshot added).
+- No credentials, SSIDs or MAC addresses in this PR.
+
 ## Note: AI support
 
-This project was created with the help of Claude (Anthropic), which assisted
-with code, documentation and diagrams.
-The ideas, concepts, analysis and designs are my own.
-All labs/exercices have been performed and tested by me.
-git/and github is managed by me.
+This project was developed with assistance from Claude (Anthropic), which
+supported coding, documentation and diagram creation.
+The ideas, concepts, analysis and design decisions are the author's own. The
+author has reviewed and tested the code, made selected modifications and
+refinements, and clarified comments where appropriate.
+Git and GitHub repositories, including version control and project
+management, have been managed and controlled by the author.
