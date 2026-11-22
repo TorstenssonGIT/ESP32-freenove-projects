@@ -73,7 +73,7 @@ roles:
 
 | Role | Use |
 |---|---|
-| **Network** | Board A joins as host name `lab8-esp32` (later board B as `lab8-echo`); internet check, NTP time, status page. The credentials are entered once over the Serial setup menu and stored on the board (see "How Wi-Fi credentials work"). |
+| **Network** | Board A joins as host name `lab8-esp32` and board B as `lab8-echo` (8.6); internet check, NTP time, status page. The credentials are entered once over the Serial setup menu and stored on the board (see "How Wi-Fi credentials work"). |
 | **Radio source for the radar** | Its beacons (about ten per second) are the signal the PMWR measures. It stands still, about 3 m away in another room; its direction from board A is measured once with a protractor as the reference. |
 
 The initial scan only lists nearby networks and does not require joining or
@@ -93,7 +93,7 @@ network (`DIRECT-93-HP OfficeJet 8010`), which has no internet access.
 | 3 | Connect to an internet webpage | Join the configured 2.4 GHz network as host name `lab8-esp32`; report IP, gateway, subnet and DNS on Serial and name + IP on the LCD; check `http://connectivitycheck.gstatic.com/generate_204` (HTTP 204 = internet OK) every 30 s. | Done (8.4): connected as `lab8-esp32` (192.168.32.6, DNS 192.168.32.1), HTTP 204 in ~300 ms; smoke-test PASS on COM3; router off shows "WiFi FAIL" and recovers. 8.4b: credentials moved to NVS (XOR-obfuscated), entered via Serial menu; smoke-test PASS. |
 | 3b | Web status page on the ESP32 | Serve `http://<esp-ip>/` and `http://lab8-esp32.local/` with the latest scan result and connection/internet status (hostname, IP, gateway, subnet, DNS, HTTP result); `/api/status` returns JSON for the Python smoke-test. Feature 6 later adds the LCD text form to this same server. | Done (8.5): page at `http://<ip>/` and `http://lab8-esp32.local/`, JSON at `/api/status`; read-only, local subnet only, SSIDs escaped; connect time / reconnects / uptime and NTP local time shown; web smoke-test, 8.4 smoke-test and router off/on PASS. |
 | 4 | Print a scan report on the HP printer over Wi-Fi | Target printer: HP OfficeJet 8010 series, reached through its Wi-Fi Direct network. The ESP32 scans nearby networks, then sends a plain-text report to port 9100 (JetDirect/raw), ending with a form feed. Each network: SSID as ASCII text and as hex (same as `ssid="…"` and `ssid_hex=` on Serial; non-printable characters as `?` in the text), RSSI, channel, security; open networks marked. | PC test passed: plain text to port 9100 over Wi-Fi Direct printed correctly (no PCL needed). ESP32 firmware planned (8.7). |
-| 5 | Run a Wi-Fi bandwidth test | Use a controlled endpoint and a bounded test; show the result/status on the LCD. | Planned |
+| 5 | Run a Wi-Fi bandwidth test | Use a controlled endpoint and a bounded test; show the result/status on the LCD. | Done (8.6, router mode): one firmware `lab8_bandwidth.cpp`, role set by a jumper (GPIO 42 to GND = echo server B). 100 UDP packets per size 32–1460 B: 0 lost in two runs, median RTT 5.4–8.3 ms, up to 2.7 Mbit/s; A ≈ 0.93 W, B ≈ 0.67 W during a series. Direct mode and web page output planned. |
 | 6 | Browse to the ESP32 and type text for the LCD | Serve a basic page from the ESP32; submitted text is shown on the existing LCD. This is a simple browser page, not a phone app. | Planned |
 | 7 | Wi-Fi radar: direction and movement | Find the direction to the router with a motor-turned reflector around the antenna; detect movement from changes in signal strength (see `lab8_radar_reflector.md`, `lab8_wifi_rt_design.md`). | Hardware verified: motor (4076 half steps per turn) and TMAG5273 index. Reflector and radar firmware: phase 1 planned (KK3). |
 | 8 | Climate sensors, power measurement and motor | Read the HS3003 (box), SHT31-D (steam) and DHT11 (room); measure voltage, current and power with the INA226; turn the motor and find the index with the TMAG5273. | Motor and sensor test done: HS3003 (0x44), SHT31-D (0x45) and DHT11 agree within about 1.5 °C / 2 % RH; TMAG5273 index works; INA226 at rest 5.27 V / 86–90 mA / ≈ 460 mW; motor 4076 half steps per turn. SHT31-D heater and DHT11 recovery check pending. |
@@ -201,7 +201,7 @@ Overview of the steps:
 | 8.4 Connect + internet check | [lab8_block_8_4_connect.svg](lab8_block_8_4_connect.svg) |
 | 8.4b Credentials in NVS | [lab8_block_8_4b_credentials.svg](lab8_block_8_4b_credentials.svg) |
 | 8.5 Web status page | [lab8_block_8_5_web.svg](lab8_block_8_5_web.svg) |
-| 8.6 Bandwidth test (planned) | [lab8_block_8_6_bandwidth.svg](lab8_block_8_6_bandwidth.svg) |
+| 8.6 Bandwidth test | [lab8_block_8_6_bandwidth.svg](lab8_block_8_6_bandwidth.svg) |
 | 8.7 Print report (planned) | [lab8_block_8_7_print.svg](lab8_block_8_7_print.svg) |
 
 Future prototype (sketch): [lab8_future_prototype.svg](lab8_future_prototype.svg)
@@ -250,7 +250,7 @@ and saved in the ESP32's flash memory (NVS).
   is fetched (NTP) on the router network first.
 - Router/client-list method for feature 2; use only a network the user owns or
   is authorized to inventory.
-- A controlled, suitable endpoint and test limits for the bandwidth test.
+- Bandwidth test (resolved): board B is the controlled endpoint (UDP echo on port 5001, local subnet only, max 1460 B); each series is 7 × 100 packets.
 - Credentials are entered over Serial and stored in NVS (see "How Wi-Fi
   credentials work"); no credentials file is used. `.gitignore` still covers
   `include/wifi_credentials*.h` as a safety net.
