@@ -1,7 +1,7 @@
 ---
 title: "Lab 8 – Wi-Fi on the ESP32-S3: Security analysis"
 author: "Johan Torstensson"
-date: "2026-11-11"
+date: "2026-11-12"
 ---
 
 # 1. Purpose and scope
@@ -72,8 +72,8 @@ No single layer covers everything; the measures below combine them.
 | 0 | Plain text in the source code | Nothing | Avoided from the start |
 | 1 | Plain text in `include/wifi_credentials.h`, ignored by git | Leaks via GitHub | 8.1 |
 | 2 | XOR-obfuscated in ESP32 flash (NVS), typed in over Serial | + secrets in source/firmware, readable flash dumps, copying to another board | **8.4b (current)** |
-| 3 | AES-GCM in flash, key hidden in a read-protected eFuse | + decoding with source code and MAC | Documented (section 10) |
-| 4 | Flash + NVS encryption + Secure Boot | + attacker's own firmware on the board | Documented (section 10) |
+| 3 | AES-GCM in flash, key hidden in a read-protected eFuse | + decoding with source code and MAC | Documented (section 11) |
+| 4 | Flash + NVS encryption + Secure Boot | + attacker's own firmware on the board | Documented (section 11) |
 
 # 7. Current implementation (level 2)
 
@@ -183,9 +183,65 @@ join the printer's network and is never part of the printed text.
 Conclusion: encrypted printing (IPP over TLS) would add complexity without
 protecting anything of value. The unencrypted print channel is accepted.
 
-# 10. Next level (not implemented)
+# 10. Analysis: network exposure and remote access
 
-## 10.1 Level 3 – AES-GCM with a hidden eFuse key
+## 10.1 Decision: local network only
+
+The ESP32's services – including the web status page (8.5) – are reachable
+only from devices on the same network as the board (the MC888 Pro's Wi-Fi or
+LAN), e.g. `http://192.168.32.6/` or `http://lab8-esp32.local/`. Nothing is
+opened to the internet.
+
+## 10.2 Why a public IP address does not make the ESP32 reachable
+
+The public IP address belongs to the **router**. Devices behind it have private
+addresses (192.168.32.x) that exist only inside the network. The router
+translates between the two (NAT) and by default only lets in replies to
+connections started from inside; an unsolicited request from the internet is
+dropped. In addition, 5G routers are often behind **carrier-grade NAT (CGNAT)**:
+the operator shares one public address among many customers, so incoming
+connections are impossible even with router configuration.
+
+Check: compare the WAN address on the router's status page with the address
+shown by `https://ifconfig.me`. If they differ, or the router's address is in
+`100.64.0.0/10`, the connection is behind CGNAT.
+
+## 10.3 The complication of an own domain
+
+Two personal domains exist (one with a static HTTPS home page at Loopia).
+Pointing a name such as `weather.example.se` at the home network looks
+convenient, but:
+
+1. **It makes the home IP public and permanent.** DNS records are public; the
+   name leads every visitor – and every scanner – to the router.
+2. **HTTPS names are published.** Every certificate (e.g. from Let's Encrypt)
+   is recorded in public Certificate Transparency logs, so a new host name is
+   discovered by scanners within minutes of getting a certificate.
+3. **It requires an open port.** Port forwarding exposes the device directly;
+   automated scanners find open ports within hours. The ESP32 page has plain
+   HTTP and no login, so it would be readable by anyone.
+4. **It may not work at all** behind CGNAT (10.2).
+
+## 10.4 Options for remote access
+
+| Option | How it works | Assessment | Decision |
+|---|---|---|---|
+| Port forwarding + own domain | DNS A record (or Loopia DynDNS) to the home IP; router forwards a port to the device | Exposes the device to the whole internet; needs TLS, login and constant updates; may be impossible behind CGNAT | **Rejected** |
+| Push to a script on own web hosting | The device sends HTTPS POSTs with a secret token to a PHP script on the Loopia site; the site shows the data | Works outward through NAT/CGNAT, but adds a public endpoint on the same hosting as the home page: a script bug (missing input checks, file writes, XSS) can compromise the site and the domain's reputation; a stolen board's token allows fake data; needs maintenance. The device must never hold Loopia admin/FTP credentials. | **Not used.** Acceptable only for public, non-sensitive data with a minimal, reviewed script |
+| Tunnel service (e.g. Cloudflare Tunnel) | The device/server opens an outgoing tunnel; the provider serves the name with HTTPS | No open ports, home IP hidden, works behind CGNAT; DNS must be managed by the provider; public unless access rules are added | Not needed for private use |
+| VPN (Tailscale or WireGuard) | Own devices join a private encrypted network; the friggebod server acts as gateway to local devices | Nothing public; Tailscale works behind CGNAT without open ports; access only for own devices | **Chosen** for future remote access (friggebod project) |
+
+## 10.5 Rule for devices that control physical things
+
+Cameras, heating and watering (planned friggebod project) are **never exposed
+publicly**; they are reached only through the VPN. Limits are also enforced
+**on the device itself** – for example a water valve that closes after a
+maximum time and a heater that never exceeds a maximum temperature – so that
+nothing is left running if the network, the server or the VPN fails.
+
+# 11. Next level (not implemented)
+
+## 11.1 Level 3 – AES-GCM with a hidden eFuse key
 
 1. Once, on the PC: burn a random 256-bit key into one of the ESP32-S3's six
    eFuse key blocks with `espefuse.py`, purpose `HMAC_UP`, read-protected.
@@ -202,13 +258,13 @@ Cost and limits:
 - The eFuse change is **permanent** and uses one key block.
 - Actor E can still flash firmware that asks the HMAC peripheral to decrypt.
 
-## 10.2 Level 4 – Flash encryption, NVS encryption and Secure Boot
+## 11.2 Level 4 – Flash encryption, NVS encryption and Secure Boot
 
 Espressif's official route encrypts the whole flash and only accepts signed
 firmware, which also stops actor E. It burns several eFuses, fits poorly with
 PlatformIO's Arduino setup and can make the board unusable if done wrong.
 
-## 10.3 Why level 2 was chosen
+## 11.3 Why level 2 was chosen
 
 The boards are lab boards kept at home. An attacker with physical access is
 already inside the house and could usually reach the router directly. Levels 3
@@ -218,7 +274,7 @@ network** limits the damage of a stolen board more effectively: only that
 network's password is exposed, and it can be changed without touching other
 devices.
 
-# 11. Risk register
+# 12. Risk register
 
 Likelihood (L) and impact (I): High / Medium / Low.
 
@@ -233,8 +289,11 @@ Likelihood (L) and impact (I): High / Medium / Low.
 | R7 | Print job (8.6) unencrypted on port 9100 | L | L | Purpose is a readable paper copy; content is broadcast SSIDs; only printer + ESP32 on the WPA2 Wi-Fi Direct network; no credentials in the report (section 9) | Accepted |
 | R8 | Anyone with USB access changes or erases credentials | L | M | Physical access required | Accepted (issue I-4) |
 | R9 | MAC filtering relied on as protection | L | M | Not relied on; MACs are sent in clear and easy to fake | Accepted as extra barrier only |
+| R10 | ESP32 page or device reachable from the internet | L | H | Local network only; no port forwarding; NAT/CGNAT blocks incoming connections (section 10) | Fixed by design |
+| R11 | Own domain pointing at the home network | L | H | Not used; names and certificates are public and lead scanners to the router (section 10.3) | Rejected |
+| R12 | Public data-upload script on own web hosting compromised | M | H | Not used in Lab 8; only for public data with a minimal, reviewed script and a revocable token | Rejected for now |
 
-# 12. Issues and open items
+# 13. Issues and open items
 
 | ID | Issue | Proposed action |
 |---|---|---|
@@ -246,8 +305,10 @@ Likelihood (L) and impact (I): High / Medium / Low.
 | I-6 | It has not been verified that no secret was ever committed. | Run `git log --all -- include/wifi_credentials.h` and search history (`git log -p -S "<password>"`); rotate the password if anything is found. |
 | I-7 | The XOR salt and algorithm are public. | Accepted by design (section 7.3); level 3 removes the dependency on secrecy. |
 | I-8 | The friggebod board will be unattended. | Put it on a separate guest/IoT network before deployment. |
+| I-9 | Remote access to the friggebod (cameras, weather, heating, watering) is wanted. | Use a VPN (Tailscale on the friggebod server); never expose controls publicly; enforce limits on each device (section 10.5). |
+| I-10 | Router remote administration could expose the router itself. | Verify that remote (WAN) administration is switched off on the MC888 Pro. |
 
-# 13. Conclusion
+# 14. Conclusion
 
 The most likely leak – credentials in the public repository – is closed: no
 secret exists in the source, the firmware file or any file on the PC.
@@ -256,7 +317,9 @@ in a flash dump and do not work on another chip. The analysis also shows the
 limits: the obfuscation is not encryption, MAC-based XOR is unsuitable for
 transmission, and some data (DNS, metadata, local HTTP, the print job) is
 visible by design and accepted with a stated reason – the print job, for
-example, is meant to end up as readable text on paper. The next levels –
+example, is meant to end up as readable text on paper. All services stay on the
+local network; remote access, when needed, goes through a VPN rather than an
+open port, an own domain or a public upload script. The next levels –
 AES-GCM with an eFuse key, and flash encryption with Secure Boot – are
 documented with their costs, and the open issues are listed with proposed
 actions.

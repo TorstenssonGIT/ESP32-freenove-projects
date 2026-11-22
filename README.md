@@ -33,6 +33,8 @@ build_src_filter = -<*> +<lab8_wifi_connect.cpp>
 
 ```bash
 pio run -t upload -t monitor
+or 
+ & "$env:USERPROFILE\.platformio\penv\Scripts\python.exe" -m platformio run -t upload -t monitor
 ```
 
 ## Wi-Fi credentials

@@ -23,7 +23,7 @@
  *  ---------------------------------------------------------
  *    SCAN_BEGIN
  *    SCAN_RESULT count=<n>
- *    AP index=<i> ssid_hex=<hex> rssi=<dBm> channel=<ch> auth=<mode>
+ *    AP AP index=<i> ssid_hex=<hex> ssid="<text>" rssi=<dBm> channel=<ch> auth=<mode>
  *    SCAN_END count=<n>
  *  On failure:
  *    SCAN_ERROR code=<code>
@@ -36,7 +36,8 @@
 
 #include <Arduino.h>
 #include <LiquidCrystal_PCF8574.h>
-#include <WiFi.h>
+
+
 #include <Wire.h>
 
 
@@ -260,7 +261,6 @@ void reportScanResults(int16_t networkCount) {
 
 // Run one complete scan and report it on the LCD and Serial.
 // The scan is synchronous: this function does not return until the scan is done.
-// The scan is asynchronous by default, but the ESP32 WiFi library provides a synchronous version that blocks until the scan is complete.
 // The scan includes hidden networks (those that do not broadcast their SSID).
 // The scan results are deleted from memory after reporting, to free up RAM.
 
@@ -319,7 +319,7 @@ void setup() {
     Serial.println("Lab 8 Wi-Fi scan ready.");
 }
 
-// tHe loop() function runs repeatedly after setup() finishes.
+// The loop() function runs repeatedly after setup() finishes.
 // The loop() function checks if a scan is due, and if so, runs one scan.
 
 void loop() {
