@@ -61,22 +61,25 @@
 <text x="620.0" y="449" font-size="10.5" text-anchor="middle" fill="#344054">needs HTTPS first</text>
 <text x="428.0" y="484" font-size="10.5" text-anchor="middle" fill="#667085">done</text>
 <text x="620.0" y="484" font-size="10.5" text-anchor="middle" fill="#667085">planned</text>
-<rect x="750" y="80" width="330" height="330" rx="12" fill="#f8fafc" stroke="#2b5a8a" stroke-width="2.2" stroke-dasharray="8 5"/>
-<text x="766" y="108" font-size="16" text-anchor="start" fill="#17324d" font-weight="bold">Board B (planned)</text>
-<text x="766" y="127" font-size="11.5" text-anchor="start" fill="#475467">ESP32-S3 N16R8 · lab8-echo · USB / power bank</text>
+<rect x="750" y="80" width="330" height="330" rx="12" fill="#f8fafc" stroke="#2b5a8a" stroke-width="2.2"/>
+<text x="766" y="108" font-size="16" text-anchor="start" fill="#17324d" font-weight="bold">Board B – echo server and slave</text>
+<text x="766" y="127" font-size="11.5" text-anchor="start" fill="#475467">ESP32-S3 N16R8 · lab8-echo · COM4</text>
 <rect x="766" y="144" width="298" height="70" rx="8" fill="#ffffff" stroke="#98a2b3" stroke-width="1.2"/>
 <text x="778" y="164" font-size="12.5" text-anchor="start" fill="#344054" font-weight="bold">Bill of Materials</text>
 <text x="778" y="184" font-size="11" text-anchor="start" fill="#344054">• HC-SR501 PIR (5 V, OUT GPIO 14)</text>
-<text x="778" y="200" font-size="11" text-anchor="start" fill="#344054">• INA226: measured once with A&#x27;s cable (8.6)</text>
-<rect x="766" y="226" width="298" height="46" rx="7" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.5" stroke-dasharray="6 4"/>
-<text x="915.0" y="244" font-size="12" text-anchor="middle" fill="#2b5a8a" font-weight="bold">8.6 Echo server</text>
-<text x="915.0" y="261" font-size="10.5" text-anchor="middle" fill="#344054">UDP port 5001, local subnet</text>
-<rect x="766" y="280" width="298" height="46" rx="7" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.5" stroke-dasharray="6 4"/>
-<text x="915.0" y="298" font-size="12" text-anchor="middle" fill="#2b5a8a" font-weight="bold">PIR ground truth</text>
-<text x="915.0" y="315" font-size="10.5" text-anchor="middle" fill="#344054">movement events, 60 s warm-up</text>
-<rect x="766" y="334" width="298" height="46" rx="7" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.5" stroke-dasharray="6 4"/>
-<text x="915.0" y="352" font-size="12" text-anchor="middle" fill="#2b5a8a" font-weight="bold">Radar phase 2 slave</text>
-<text x="915.0" y="369" font-size="10.5" text-anchor="middle" fill="#344054">listen (2a), transmit in slots (2b)</text>
+<text x="778" y="200" font-size="11" text-anchor="start" fill="#344054">• INA226 (own cable, 10 kΩ pull-ups)</text>
+<rect x="766" y="226" width="145.0" height="46" rx="7" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.5"/>
+<text x="838.5" y="244" font-size="12" text-anchor="middle" fill="#2b5a8a" font-weight="bold">Power test</text>
+<text x="838.5" y="261" font-size="10.5" text-anchor="middle" fill="#344054">INA226: 41.6 mA at rest</text>
+<rect x="919.0" y="226" width="145.0" height="46" rx="7" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="991.5" y="244" font-size="12" text-anchor="middle" fill="#2b5a8a" font-weight="bold">8.6 Echo server</text>
+<text x="991.5" y="261" font-size="10.5" text-anchor="middle" fill="#344054">UDP 5001</text>
+<rect x="766" y="280" width="145.0" height="46" rx="7" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="838.5" y="298" font-size="12" text-anchor="middle" fill="#2b5a8a" font-weight="bold">PIR ground truth</text>
+<text x="838.5" y="315" font-size="10.5" text-anchor="middle" fill="#344054">wired, 60 s warm-up</text>
+<rect x="919.0" y="280" width="145.0" height="46" rx="7" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="991.5" y="298" font-size="12" text-anchor="middle" fill="#2b5a8a" font-weight="bold">Radar slave</text>
+<text x="991.5" y="315" font-size="10.5" text-anchor="middle" fill="#344054">phase 2a / 2b</text>
 <rect x="750" y="440" width="330" height="240" rx="12" fill="#f8fafc" stroke="#2b5a8a" stroke-width="2.2" stroke-dasharray="8 5"/>
 <text x="766" y="468" font-size="16" text-anchor="start" fill="#17324d" font-weight="bold">Board C (planned)</text>
 <text x="766" y="487" font-size="11.5" text-anchor="start" fill="#475467">ESP32-S3 · lab8-echo2 · third corner of the triangle</text>

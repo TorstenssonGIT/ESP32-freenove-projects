@@ -8,7 +8,7 @@
 <text x="20" y="32" font-size="19" font-weight="bold" fill="#17324d">Lab 8.6 – UDP echo bandwidth and latency test (planned)</text>
 <rect x="20" y="80" width="260" height="170" rx="8" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.6"/>
 <text x="150.0" y="102" font-size="14" font-weight="bold" text-anchor="middle" fill="#2b5a8a">Bandwidth Test Controller</text>
-<text x="150.0" y="122" font-size="11.5" text-anchor="middle" fill="#344054">board A, with LCD</text>
+<text x="150.0" y="122" font-size="11.5" text-anchor="middle" fill="#344054">board A, with LCD and INA226</text>
 <text x="150.0" y="138" font-size="11.5" text-anchor="middle" fill="#344054">sizes 32 … 1472 bytes</text>
 <text x="150.0" y="154" font-size="11.5" text-anchor="middle" fill="#344054">100 packets per size</text>
 <text x="150.0" y="170" font-size="11.5" text-anchor="middle" fill="#344054">seq no + filler</text>
@@ -20,7 +20,7 @@
 <text x="460.0" y="168" font-size="11.5" text-anchor="middle" fill="#344054">same subnet</text>
 <rect x="640" y="80" width="260" height="170" rx="8" fill="#e7f0fb" stroke="#2b5a8a" stroke-width="1.6"/>
 <text x="770.0" y="102" font-size="14" font-weight="bold" text-anchor="middle" fill="#2b5a8a">Bandwidth Test Echo Server</text>
-<text x="770.0" y="122" font-size="11.5" text-anchor="middle" fill="#344054">board B, no wiring, USB power</text>
+<text x="770.0" y="122" font-size="11.5" text-anchor="middle" fill="#344054">board B (lab8-echo), own INA226</text>
 <text x="770.0" y="138" font-size="11.5" text-anchor="middle" fill="#344054">port 5001</text>
 <text x="770.0" y="154" font-size="11.5" text-anchor="middle" fill="#344054">send every packet back</text>
 <text x="770.0" y="170" font-size="11.5" text-anchor="middle" fill="#344054">local subnet only</text>
@@ -39,6 +39,6 @@
 <polyline points="150,250 150,290" fill="none" stroke="#344054" stroke-width="1.8" marker-end="url(#arr)"/>
 <rect x="640" y="290" width="260" height="70" rx="8" fill="#fffbea" stroke="#b8a03a" stroke-width="1.6"/>
 <text x="770.0" y="312" font-size="14" font-weight="bold" text-anchor="middle" fill="#b8a03a">Measures</text>
-<text x="770.0" y="332" font-size="11.5" text-anchor="middle" fill="#344054">local Wi-Fi latency and</text>
-<text x="770.0" y="348" font-size="11.5" text-anchor="middle" fill="#344054">throughput – not the internet</text>
+<text x="770.0" y="332" font-size="11.5" text-anchor="middle" fill="#344054">local Wi-Fi latency, throughput</text>
+<text x="770.0" y="348" font-size="11.5" text-anchor="middle" fill="#344054">and power on both boards (INA226)</text>
 </svg>

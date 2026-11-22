@@ -409,6 +409,31 @@ verified motor and sensor set-up on board A.
 - [x] Files verified with SHA-256 checksums
 - [x] No passwords; neighbouring SSIDs hidden; no GPS in photos
 
+## Lab 8 – KK2 update after the merge
+
+### Summary
+Changes made after the KK2 merge: the motor's own power supply, board B wired
+and verified, and documentation improvements.
+
+### Changes
+- **Motor supply:** own USB-C power cable from the KVM switch (shared GND);
+  the ESP32's voltage dip while the motor turns dropped from 0.16 V to 0.03 V.
+- **Board B:** own INA226 cable (10 kΩ pull-ups on GPIO 1/2, since B has no LCD)
+  and HC-SR501 PIR (OUT GPIO 14, jumper on H); 5.30 V / 41.6 mA / 221 mW at rest.
+- **Requirements:** HW table with Item and Description columns; HW-2, HW-3,
+  HW-7, HW-11 and FR-BW-7 updated; open item 2 resolved.
+- **Design report:** BoM with Item and Description columns, kit parts listed;
+  board B results; problems "Board B's INA226 not found" (pull-ups, broken jumper)
+  and motor supply; first-person background; readable table columns in the PDFs.
+- **Diagrams:** wiring (PC for data, KVM switch feeding both cables), overview
+  (board B no longer planned), 8.6 (INA226 on both boards).
+- **Photo:** boards A and B together.
+
+### Checks
+- [x] All files verified with SHA-256 checksums
+- [x] Board A: motor and sensor test unchanged
+- [x] Board B: INA226 found and measuring
+- [x] No passwords; no GPS in the photo
 
 ## Note: AI support
 
