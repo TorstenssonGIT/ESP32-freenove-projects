@@ -463,6 +463,42 @@ and verified, and documentation improvements.
 - Before uploading to board A again, change `build_src_filter` back to the motor test.
 - No credentials in this PR.
 
+## Lab 8: 8.6 bandwidth test (router mode), verified
+
+### What
+- `src/lab8_bandwidth.cpp`: one firmware for both boards; the role is set by a jumper.
+  - GPIO 42 to GND: echo server (board B, `lab8-echo`), UDP port 5001, echoes packets unchanged, answers `STATUS?` with uptime and INA226 power; local subnet only, max 1460 bytes.
+  - GPIO 42 open: controller (board A, `lab8-esp32`, LCD); finds the echo server by mDNS; 100 packets per size 32…1460 bytes, 500 ms timeout, sequence number and content checked; min/median/average/max RTT (`esp_timer`), losses, throughput, power of both boards.
+  - Wi-Fi power saving off on both boards. Credentials from NVS (setup menu, `c` at boot).
+- `platformio.ini`: `build_src_filter = -<*> +<lab8_bandwidth.cpp>`
+- `report/lab8_wifi_requirements.md` + `.pdf`: FR-BW-1…4, 6, 7, NFR-RT-2…3, SEC-7 updated; 1472 → 1460.
+
+### Test results (router mode, RSSI −61/−62 dBm, channel 11)
+| Size (B) | Lost | Median RTT (ms) | Avg RTT (ms) | Max RTT (ms) | Throughput (kbit/s) |
+|---|---|---|---|---|---|
+| 32 | 0 | 6.5 | 7.4 | 25.4 | 69 |
+| 64 | 0 | 5.4 | 6.5 | 13.5 | 157 |
+| 128 | 0 | 6.0 | 7.0 | 14.5 | 293 |
+| 256 | 0 | 6.0 | 7.3 | 21.2 | 563 |
+| 512 | 0 | 7.5 | 8.2 | 21.9 | 1002 |
+| 1024 | 0 | 7.5 | 8.5 | 31.3 | 1922 |
+| 1460 | 0 | 8.2 | 9.0 | 17.5 | 2588 |
+
+Throughput = 2 × size × 8 / average RTT (one packet at a time, so this is a latency-bound figure, not the link's maximum).
+
+Power during a series: A ≈ 0.92–0.96 W (≈ 180 mA), B ≈ 0.67 W (≈ 129 mA). B at rest without Wi-Fi: 0.22 W.
+B echoed 705 of 705 packets (5 warm-up + 7 × 100), `echo_restarted=0`.
+
+### Problems solved
+- 1472-byte packets all "lost": the Arduino UDP library receives at most 1460 bytes, so B echoed them cut short. Largest size changed to 1460; a `changed=` count now separates cut/altered packets from real losses.
+- Compiler warnings: `udp.flush()` → `udp.clear()`; `(int)` casts for RSSI/channel in printf.
+
+### Not yet
+- Direct mode (FR-BW-5), web page output (FR-BW-4), DHCP reservation .51 (B got .6; mDNS finds it).
+
+### Notes
+- No credentials in this PR. The router SSID is not in the docs.
+
 ## Note: AI support
 
 This project was created with the help of Claude (Anthropic), which assisted

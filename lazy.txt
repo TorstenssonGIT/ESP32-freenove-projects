@@ -11,7 +11,20 @@ pio run -e esp32-s3-devkitc-1 -t upload -t monitor
 pio run -t upload -t monitor
 
 
+& "$env:USERPROFILE\.platformio\penv\Scripts\python.exe" -m platformio device list
 
+& "$env:USERPROFILE\.platformio\penv\Scripts\python.exe" -m platformio run -t upload -t monitor --upload-port COM4 --monitor-port COM4
 
+& "$env:USERPROFILE\.platformio\penv\Scripts\python.exe" -m platformio device list
 
-
+# About Lazy.txt 
+Commit it with your changes whenever you update it, like any other file.
+Keep it in the repo, but have Git ignore your local edits: run git update-index --skip-worktree lazy.txt. The M disappears and your edits never get committed. To undo, run git update-index --no-skip-worktree lazy.txt.
+# To untrack:
+git checkout -b lab8/untrack-lazy-txt
+echo "lazy.txt" >> .gitignore
+git rm --cached lazy.txt
+git status
+git add .gitignore
+git commit -m "Stop tracking lazy.txt (local notes file)"
+git push -u origin lab8/untrack-lazy-txt

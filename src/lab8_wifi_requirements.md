@@ -96,13 +96,13 @@ I = inspection (code, files or documentation).
 
 | ID | Requirement | Pri | Verif. | Status |
 |-----|------------------------------|--|---|--------|
-| FR-BW-1 | The echo server shall return every UDP packet received on port 5001 unchanged. | M | T | Planned |
-| FR-BW-2 | The controller shall send 100 packets per size for the sizes 32, 64, 128, 256, 512, 1024 and 1472 bytes, one at a time. | M | T | Planned |
-| FR-BW-3 | A packet not returned within 500 ms shall count as lost; returned packets shall be checked for sequence number and content. | M | T | Planned |
-| FR-BW-4 | Per size, the controller shall report min, median, average and max round-trip time (µs), losses and throughput (2 × size / average RTT) on Serial (`BW_RESULT`), the LCD and the web page. | M | T | Planned |
+| FR-BW-1 | The echo server shall return every UDP packet received on port 5001 unchanged. | M | T | Verified (705 of 705 echoed, 0 changed) |
+| FR-BW-2 | The controller shall send 100 packets per size for the sizes 32, 64, 128, 256, 512, 1024 and 1460 bytes, one at a time. (1460 is the largest packet the Arduino UDP library receives; 1472 arrived cut to 1460.) | M | T | Verified |
+| FR-BW-3 | A packet not returned within 500 ms shall count as lost; returned packets shall be checked for sequence number and content. | M | T | Verified (lost and changed counted separately) |
+| FR-BW-4 | Per size, the controller shall report min, median, average and max round-trip time (µs), losses and throughput (2 × size / average RTT) on Serial (`BW_RESULT`), the LCD and the web page. | M | T | Partly verified (Serial and LCD; web page not yet) |
 | FR-BW-5 | The test shall run in router mode or direct mode (echo server as access point), chosen in the menu. | M | M | Planned |
-| FR-BW-6 | The controller shall read the echo server's uptime before and after each series over UDP and mark the series unreliable if the echo server restarted. | M | T | Planned |
-| FR-BW-7 | Each board shall measure its own current, voltage and power with its INA226, at the same time. The echo server shall print its values on Serial and send them to the controller in its UDP status message; the controller shall report both with the test results. | S | T | Planned (both power monitors verified) |
+| FR-BW-6 | The controller shall read the echo server's uptime before and after each series over UDP and mark the series unreliable if the echo server restarted. | M | T | Verified (`echo_restarted=0`) |
+| FR-BW-7 | Each board shall measure its own current, voltage and power with its INA226, at the same time. The echo server shall print its values on Serial and send them to the controller in its UDP status message; the controller shall report both with the test results. | S | T | Verified (A ≈ 0.92–0.96 W, B ≈ 0.67 W during a series) |
 
 ## 4.6 Experiments (8.6b, 8.6c)
 
@@ -151,8 +151,8 @@ I = inspection (code, files or documentation).
 | ID | Requirement | Pri | Verif. | Status |
 |-----|------------------------------|--|---|--------|
 | NFR-RT-1 | `loop()` shall not block for long: web serving, scan and NTP shall be non-blocking. Accepted blocking: internet check up to 2 × 5 s, reconnect up to 20 s. | M | I | Verified |
-| NFR-RT-2 | During a bandwidth series, nothing else shall run (no scan, web, NTP or HTTP), and Wi-Fi power saving shall be off on both boards. | M | I | Planned |
-| NFR-RT-3 | Round-trip times shall be measured in microseconds with `esp_timer`. | M | I | Planned |
+| NFR-RT-2 | During a bandwidth series, nothing else shall run (no scan, web, NTP or HTTP), and Wi-Fi power saving shall be off on both boards. | M | I | Verified (separate test firmware, `WiFi.setSleep(false)`) |
+| NFR-RT-3 | Round-trip times shall be measured in microseconds with `esp_timer`. | M | I | Verified |
 | NFR-RT-4 | Measurement activities shall be time-triggered: every window shall start at an absolute UTC time (radar phase 1: `UTC mod 6 s = 0`; phase 2b: `UTC mod 12 s = 0`), never at "interval since last time" (see `lab8_wifi_rt_design.md`). | M | I | Planned |
 | NFR-RT-5 | Only one board shall transmit at a time; slots shall be separated by guard times larger than the clock offset plus drift. | M | T | Planned |
 | NFR-RT-6 | Clock offset between nodes shall stay below half the guard time; a node outside the limit shall stop transmitting (fail-silent) until resynchronized. | M | T | Planned |
@@ -178,7 +178,7 @@ I = inspection (code, files or documentation).
 | SEC-4 | All services shall be reachable from the local network only; no port forwarding, DDNS or own domain shall point at the home network. | M | M | Verified |
 | SEC-5 | The web page shall be read-only (non-GET → 405) and answer only the local subnet (otherwise 403). | M | T | Verified |
 | SEC-6 | SSIDs shall be HTML- and JSON-escaped; the page shall contain no JavaScript and send CSP, `nosniff`, `no-store` and frame-deny headers. | M | T | Verified |
-| SEC-7 | The echo server shall answer only the local subnet and accept at most 1472 bytes per packet. | M | T | Planned |
+| SEC-7 | The echo server shall answer only the local subnet and accept at most 1460 bytes per packet. | M | T | Implemented (`rejected=0` in test; foreign-subnet test not done) |
 | SEC-8 | HTTPS (own CA, certificate with subjectAltName, EC P-256 key stored outside git) shall be introduced before the web page accepts any input (FR-LCD-1). | M | I | Planned |
 | SEC-9 | Remote access (friggebod) shall only be via VPN; controls shall have limits enforced on the device. | M | I | Planned |
 | SEC-10 | Router: admin password changed from the label default, WAN administration off, system log on, WPS off. | S | M | Partly (log) |
@@ -194,7 +194,7 @@ I = inspection (code, files or documentation).
 | Sensor test | HW-4, HW-8 | `lab8_sensor_test.cpp` (Serial and LCD) | Verified (HS3003 and DHT11 within 0.54 °C / 0.9 % RH) |
 | Motor and sensor test | HW-3, HW-4, HW-7…10 | `lab8_motor_and_sensor_test.cpp` | Verified (motor, index, three hygrometers, INA226) |
 | 8.5b | FR-WEB-6…7, NFR-MEM-1 | web smoke-test (extended) | Planned |
-| 8.6 | FR-BW-1…7, NFR-RT-2…3, HW-2…3, HW-6, SEC-7 | bandwidth smoke-test | Planned |
+| 8.6 | FR-BW-1…7, NFR-RT-2…3, HW-2…3, HW-6, SEC-7 | bandwidth smoke-test | Router mode verified 2026-11-22 (`lab8_bandwidth.cpp`, role jumper GPIO 42) |
 | 8.6b | FR-HUM-1…3, HW-4, HW-8, HW-9 | CSV log + graphs | Planned |
 | 8.6c | FR-REFL-1…2 | polar chart | Planned |
 | 8.7 | FR-PRINT-1…3 | manual (printout) | Planned |
@@ -204,7 +204,6 @@ I = inspection (code, files or documentation).
 # 8. Open items
 
 1. DHCP reservations for all three boards (NFR-NET-1).
-2. Resolved: board B has its own INA226 cable (10 kΩ pull-ups on GPIO 1/2, since B has no LCD), so A and B are measured at the same time (HW-3, FR-BW-7); the motor has its own 5 V cable from the KVM switch, so the ESP32's voltage only dips 0.03 V while it turns (HW-7).
-3. Router checks not yet reported: CGNAT, WAN administration, admin password, WPA mode, WPS, guest network, firmware (SEC-10).
-4. Menu erase (FR-CRED-2) and wrong-password case not yet tested.
-5. mDNS works (`lab8-esp32.local` opens the page); check whether the router's DNS also resolves `lab8-esp32` (`nslookup`).
+2. Router checks not yet reported: CGNAT, WAN administration, admin password, WPA mode, WPS, guest network, firmware (SEC-10).
+3. Menu erase (FR-CRED-2) and wrong-password case not yet tested.
+4. mDNS works (`lab8-esp32.local` opens the page); check whether the router's DNS also resolves `lab8-esp32` (`nslookup`).
