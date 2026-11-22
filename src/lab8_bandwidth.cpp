@@ -1,6 +1,6 @@
 /*
  * =============================================================================
- *  Lab 8 - 8.6 Bandwidth test: one firmware, role chosen by a jumper
+ *  Lab 8 - 8.6 Bandwidth test + movement monitor: one firmware, role by jumper
  * =============================================================================
  *
  *  Role jumper
@@ -18,7 +18,7 @@
  *  Echo server
  *  -----------
  *    UDP port 5001: "STATUS?" -> STATUS line (uptime + own power), anything
- *    else -> sent back unchanged. Only the local subnet, max 1472 bytes (SEC-7).
+ *    else -> sent back unchanged. Only the local subnet, max 1460 bytes (SEC-7).
  *    POWER line every 5 s.
  *
  *  Controller
@@ -26,13 +26,25 @@
  *    Finds the echo server (mDNS lab8-echo.local, else KEchoFallbackIp), runs
  *    one series at boot and again on 'r':
  *      - echo server STATUS before and after (restart check, its power)
- *      - sizes 32...1472 bytes, 100 packets each, one at a time, 500 ms
+ *      - sizes 32...1460 bytes, 100 packets each, one at a time, 500 ms
  *        timeout, sequence number + content checked
  *      - min / median / average / max RTT (µs, esp_timer), losses,
  *        throughput, own power; each size shown on the LCD
  *    Throughput = 2 x size x 8 / average RTT  (bits both ways per round trip)
  *
- *  Requirements: FR-BW-1...4, FR-BW-6, FR-BW-7, NFR-RT-2, NFR-RT-3, SEC-7.
+ *  Movement monitor (phase 2a light, no reflector)
+ *  -----------------------------------------------
+ *    Both boards read the router's RSSI every 100 ms (the router sends about
+ *    ten beacons per second). Every 1 s window gives a median and a spread
+ *    (standard deviation, dB). Board B also samples its PIR (GPIO 14).
+ *    Controller: 'm' starts/stops the monitor. Every second it asks B
+ *    "MEAS?" and B answers with its last window, PIR state and power.
+ *    A prints one MOVE line per second with both links; a link is flagged
+ *    as movement when its spread is above KMoveSpreadDb. B's PIR is the
+ *    reference for real movement.
+ *
+ *  Requirements: FR-BW-1...4, FR-BW-6, FR-BW-7, NFR-RT-2, NFR-RT-3, SEC-7,
+ *  FR-RADAR-4 (first part, without empty-room calibration), HW-11.
  *  Not yet: direct mode (FR-BW-5), web page output (FR-BW-4).
  *
  *  Serial protocol
@@ -42,13 +54,19 @@
  *    WIFI_STATUS connected=1 hostname=<name> ip=<ip> rssi=<dBm> channel=<n>
  *    echo server:
  *      ECHO_READY port=5001
- *      POWER uptime_s=<s> v=<V> i_ma=<mA> p_mw=<mW> echoed=<n> rejected=<n>
+ *      POWER uptime_s=<s> v=<V> i_ma=<mA> p_mw=<mW> echoed=<n> rejected=<n> pir=<0|1>
  *    controller:
  *      ECHO_TARGET ip=<ip> via=<mdns|fallback>
  *      ECHO_STATUS when=<before|after> uptime_ms=<ms> v=<V> i_ma=<mA> p_mw=<mW>
- *      BW_RESULT size=<B> sent=<n> lost=<n> rtt_min_us=.. rtt_med_us=..
+ *      BW_RESULT size=<B> sent=<n> lost=<n> changed=<n> rtt_min_us=.. rtt_med_us=..
  *                rtt_avg_us=.. rtt_max_us=.. kbps=.. a_v=.. a_i_ma=.. a_p_mw=..
  *      BW_SERIES done=1 echo_restarted=<0|1> rssi=<dBm>
+ *      MOVE uptime_s=<s> a_rssi=<dBm> a_sd=<dB> a_move=<0|1>
+ *           b_ok=<0|1> b_rssi=<dBm> b_sd=<dB> b_move=<0|1>
+ *           b_pir=<0|1> b_pir_any=<0|1> b_pir_edges=<n> b_p_mw=<mW>
+ *    B's answer to MEAS?:
+ *      MEAS rssi=<dBm> sd=<dB> n=<samples> pir=<0|1> pir_any=<0|1>
+ *           pir_edges=<n> v=<V> i_ma=<mA> p_mw=<mW>
  *
  *  platformio.ini:  build_src_filter = -<*> +<lab8_bandwidth.cpp>
  * =============================================================================
@@ -72,15 +90,21 @@ constexpr uint8_t     KPinRole = 42;              // jumper to GND = echo server
 
 constexpr const char* KControllerName = "lab8-esp32";
 constexpr const char* KEchoName       = "lab8-echo";
-const IPAddress       KEchoFallbackIp(192, 168, 32, 51);
+const IPAddress       KEchoFallbackIp(192, 168, 32, 6);   // B's DHCP address until .51 is reserved
 constexpr uint16_t    KEchoPort  = 5001;
 constexpr uint16_t    KLocalPort = 5002;
-constexpr size_t      KMaxPacketBytes = 1472;    // largest UDP payload without fragmentation
+constexpr size_t      KMaxPacketBytes = 1460;    // Arduino UDP receive buffer limit (1472 is cut to 1460)
 
-constexpr uint16_t KSizes[]        = {32, 64, 128, 256, 512, 1024, 1472};
+constexpr uint16_t KSizes[]        = {32, 64, 128, 256, 512, 1024, 1460};
 constexpr int      KPacketsPerSize = 100;
 constexpr uint32_t KTimeoutUs      = 500000;     // 500 ms = lost
 constexpr int      KWarmupPackets  = 5;          // fills ARP tables, not counted
+
+constexpr uint8_t  KPinPir         = 14;          // HC-SR501 OUT, board B only (A has DHT11 here)
+constexpr uint32_t KSampleMs       = 100;         // RSSI/PIR sample interval
+constexpr int      KWindowSamples  = 10;          // 10 x 100 ms = 1 s window
+constexpr float    KMoveSpreadDb   = 2.0f;        // spread above this = movement (tune)
+constexpr uint32_t KMeasTimeoutUs  = 300000;      // wait for B's MEAS answer
 
 constexpr uint32_t KWifiTimeoutMs   = 20000;
 constexpr uint32_t KPowerIntervalMs = 5000;
@@ -107,6 +131,7 @@ uint8_t   txBuffer[KMaxPacketBytes];
 uint8_t   rxBuffer[1500];
 uint32_t  rtts[KPacketsPerSize];
 uint8_t   inaAddress = 0;
+int       changedPackets = 0;                 // returned, but wrong length or content
 
 uint32_t echoedPackets   = 0;
 uint32_t rejectedPackets = 0;
@@ -114,6 +139,28 @@ uint32_t lastPowerMillis = 0;
 
 struct Power { float volts = 0, milliamps = 0, milliwatts = 0; };
 struct EchoStatus { bool ok = false; uint32_t uptimeMs = 0; Power power; };
+
+// One 1 s window of RSSI samples (and PIR on board B).
+struct Window {
+    int      samples[KWindowSamples];
+    int      count = 0;
+    bool     pirAny = false;                      // PIR high at any sample
+    int      pirEdges = 0;                        // 0 -> 1 changes
+    int      lastPir = 0;
+    uint32_t lastSampleMs = 0;
+};
+struct WindowResult {
+    bool  valid = false;
+    int   median = 0;
+    float spread = 0;                             // standard deviation, dB
+    int   n = 0;
+    bool  pirAny = false;
+    int   pirEdges = 0;
+};
+
+Window       window;                              // this board's current window
+WindowResult lastWindow;                          // this board's last finished window
+bool         monitorOn = false;                   // controller: movement monitor running
 
 // ---------------------------------------------------------------------------
 //  LCD (controller only) and INA226
@@ -181,7 +228,53 @@ bool connectToWifi() {
     WiFi.setSleep(false);                         // NFR-RT-2
     Serial.printf("WIFI_STATUS connected=1 hostname=%s ip=%s rssi=%d channel=%d\n",
                   WiFi.getHostname(), WiFi.localIP().toString().c_str(),
-                  WiFi.RSSI(), WiFi.channel());
+                  (int)WiFi.RSSI(), (int)WiFi.channel());
+    return true;
+}
+
+// =============================================================================
+//  RSSI / PIR window (both roles)
+// =============================================================================
+
+WindowResult finishWindow(Window& w) {
+    WindowResult r;
+    r.n = w.count;
+    r.pirAny = w.pirAny;
+    r.pirEdges = w.pirEdges;
+    if (w.count > 0) {
+        int sorted[KWindowSamples];
+        memcpy(sorted, w.samples, sizeof(int) * w.count);
+        std::sort(sorted, sorted + w.count);
+        r.median = sorted[w.count / 2];
+        float mean = 0;
+        for (int i = 0; i < w.count; i++) mean += w.samples[i];
+        mean /= w.count;
+        float var = 0;
+        for (int i = 0; i < w.count; i++) var += (w.samples[i] - mean) * (w.samples[i] - mean);
+        r.spread = sqrtf(var / w.count);
+        r.valid = true;
+    }
+    w.count = 0;
+    w.pirAny = false;
+    w.pirEdges = 0;
+    return r;
+}
+
+// Takes one sample every 100 ms. Returns true when a 1 s window is finished
+// (the result is then in lastWindow).
+bool sampleWindow() {
+    if (millis() - window.lastSampleMs < KSampleMs) return false;
+    window.lastSampleMs = millis();
+
+    window.samples[window.count++] = WiFi.RSSI();   // from the router's frames
+    if (isEchoServer) {
+        int pir = digitalRead(KPinPir);
+        if (pir) window.pirAny = true;
+        if (pir && !window.lastPir) window.pirEdges++;
+        window.lastPir = pir;
+    }
+    if (window.count < KWindowSamples) return false;
+    lastWindow = finishWindow(window);
     return true;
 }
 
@@ -203,7 +296,7 @@ void handleEchoPacket() {
     uint16_t  remotePort = udp.remotePort();
 
     if (size > (int)KMaxPacketBytes || !isLocalSender(remoteIp)) {
-        udp.flush();                              // drop it
+        udp.clear();                              // drop it
         rejectedPackets++;
         return;
     }
@@ -224,6 +317,22 @@ void handleEchoPacket() {
         return;
     }
 
+    // Measurement request: last RSSI window + PIR + power (phase 2a).
+    if (length == 5 && memcmp(rxBuffer, "MEAS?", 5) == 0) {
+        Power p = readPower();
+        char reply[192];
+        int n = snprintf(reply, sizeof(reply),
+                         "MEAS rssi=%d sd=%.2f n=%d pir=%d pir_any=%d pir_edges=%d "
+                         "v=%.3f i_ma=%.1f p_mw=%.0f",
+                         lastWindow.median, lastWindow.spread, lastWindow.n,
+                         digitalRead(KPinPir), lastWindow.pirAny ? 1 : 0, lastWindow.pirEdges,
+                         p.volts, p.milliamps, p.milliwatts);
+        udp.beginPacket(remoteIp, remotePort);
+        udp.write((const uint8_t*)reply, n);
+        udp.endPacket();
+        return;
+    }
+
     // Echo: send back unchanged (FR-BW-1).
     udp.beginPacket(remoteIp, remotePort);
     udp.write(rxBuffer, length);
@@ -233,12 +342,14 @@ void handleEchoPacket() {
 
 void echoLoop() {
     handleEchoPacket();
+    sampleWindow();
     if (millis() - lastPowerMillis >= KPowerIntervalMs) {
         lastPowerMillis = millis();
         Power p = readPower();
-        Serial.printf("POWER uptime_s=%lu v=%.3f i_ma=%.1f p_mw=%.0f echoed=%lu rejected=%lu\n",
+        Serial.printf("POWER uptime_s=%lu v=%.3f i_ma=%.1f p_mw=%.0f echoed=%lu rejected=%lu pir=%d\n",
                       (unsigned long)(millis() / 1000), p.volts, p.milliamps, p.milliwatts,
-                      (unsigned long)echoedPackets, (unsigned long)rejectedPackets);
+                      (unsigned long)echoedPackets, (unsigned long)rejectedPackets,
+                      digitalRead(KPinPir));
     }
 }
 
@@ -255,7 +366,7 @@ void findEchoServer() {
 }
 
 void drainUdp() {                                 // throw away late replies
-    while (udp.parsePacket() > 0) udp.flush();
+    while (udp.parsePacket() > 0) udp.clear();
 }
 
 EchoStatus requestStatus() {
@@ -307,7 +418,7 @@ uint32_t sendOne(uint32_t seq, uint16_t size) {
         uint32_t rxSeq = 0;
         if (n >= 4) memcpy(&rxSeq, rxBuffer, 4);
         if (rxSeq != seq) continue;               // late reply to an earlier packet
-        if (n != size || memcmp(rxBuffer, txBuffer, size) != 0) return 0;  // changed
+        if (n != size || memcmp(rxBuffer, txBuffer, size) != 0) { changedPackets++; return 0; }
         uint32_t rtt = (uint32_t)(esp_timer_get_time() - start);
         return rtt == 0 ? 1 : rtt;
     }
@@ -320,12 +431,18 @@ void runSeries() {
 
     EchoStatus before = requestStatus();
     printStatus("before", before);
+    if (!before.ok) {                             // no echo server: don't wait 6 min for timeouts
+        Serial.println("BW_SERIES done=0 reason=NO_ECHO_SERVER (check B's power, then send r)");
+        showOnLcd("No echo server", "r=retry m=move");
+        return;
+    }
 
     uint32_t seq = 1;
     for (int i = 0; i < KWarmupPackets; i++) sendOne(seq++, 32);
 
     for (uint16_t size : KSizes) {
         int received = 0, samples = 0;
+        changedPackets = 0;
         Power sum;
 
         for (int k = 0; k < KPacketsPerSize; k++) {
@@ -351,13 +468,13 @@ void runSeries() {
             avgUs = (float)total / received;
             kbps  = 2.0f * size * 8.0f / avgUs * 1000.0f;   // bits/µs -> kbit/s
         }
-        Serial.printf("BW_RESULT size=%u sent=%d lost=%d rtt_min_us=%lu rtt_med_us=%lu "
+        Serial.printf("BW_RESULT size=%u sent=%d lost=%d changed=%d rtt_min_us=%lu rtt_med_us=%lu "
                       "rtt_avg_us=%.0f rtt_max_us=%lu kbps=%.0f a_v=%.3f a_i_ma=%.1f a_p_mw=%.0f\n",
-                      size, KPacketsPerSize, lost, (unsigned long)minUs, (unsigned long)medUs,
+                      size, KPacketsPerSize, lost, changedPackets, (unsigned long)minUs, (unsigned long)medUs,
                       avgUs, (unsigned long)maxUs, kbps,
                       sum.volts / samples, sum.milliamps / samples, sum.milliwatts / samples);
 
-        char line1[17], line2[17];
+        char line1[40], line2[40];                   // showOnLcd() cuts to 16
         snprintf(line1, sizeof(line1), "%uB %.1fms", size, medUs / 1000.0f);
         snprintf(line2, sizeof(line2), "L%d %.0fkbps", lost, kbps);
         showOnLcd(line1, line2);
@@ -366,17 +483,70 @@ void runSeries() {
     EchoStatus after = requestStatus();
     printStatus("after", after);
     bool restarted = before.ok && after.ok && after.uptimeMs < before.uptimeMs;   // FR-BW-6
-    Serial.printf("BW_SERIES done=1 echo_restarted=%d rssi=%d\n", restarted ? 1 : 0, WiFi.RSSI());
-    Serial.println("Send r to run again.");
-    showOnLcd(restarted ? "Done: ECHO RESET" : "Series done", "r = run again");
+    Serial.printf("BW_SERIES done=1 echo_restarted=%d rssi=%d\n", restarted ? 1 : 0, (int)WiFi.RSSI());
+    Serial.println("Send r to run again, m for the movement monitor.");
+    showOnLcd(restarted ? "Done: ECHO RESET" : "Series done", "r=again m=move");
+}
+
+// Asks B for its last window and prints one MOVE line with both links.
+void reportMovement() {
+    drainUdp();
+    udp.beginPacket(echoIp, KEchoPort);
+    udp.write((const uint8_t*)"MEAS?", 5);
+    udp.endPacket();
+
+    bool bOk = false;
+    int bRssi = 0, bN = 0, bPir = 0, bPirAny = 0, bEdges = 0;
+    float bSd = 0, bV = 0, bI = 0, bP = 0;
+    int64_t start = esp_timer_get_time();
+    while (esp_timer_get_time() - start < KMeasTimeoutUs) {
+        if (udp.parsePacket() <= 0) continue;
+        int n = udp.read(rxBuffer, sizeof(rxBuffer) - 1);
+        if (n < 0) n = 0;
+        rxBuffer[n] = 0;
+        if (sscanf((char*)rxBuffer,
+                   "MEAS rssi=%d sd=%f n=%d pir=%d pir_any=%d pir_edges=%d v=%f i_ma=%f p_mw=%f",
+                   &bRssi, &bSd, &bN, &bPir, &bPirAny, &bEdges, &bV, &bI, &bP) == 9) {
+            bOk = bN > 0;
+            break;
+        }
+    }
+
+    bool aMove = lastWindow.spread > KMoveSpreadDb;
+    bool bMove = bOk && bSd > KMoveSpreadDb;
+    Serial.printf("MOVE uptime_s=%lu a_rssi=%d a_sd=%.2f a_move=%d "
+                  "b_ok=%d b_rssi=%d b_sd=%.2f b_move=%d b_pir=%d b_pir_any=%d b_pir_edges=%d b_p_mw=%.0f\n",
+                  (unsigned long)(millis() / 1000), lastWindow.median, lastWindow.spread, aMove ? 1 : 0,
+                  bOk ? 1 : 0, bRssi, bSd, bMove ? 1 : 0, bPir, bPirAny, bEdges, bP);
+
+    char line1[40], line2[40];                   // showOnLcd() cuts to 16
+    snprintf(line1, sizeof(line1), "A%d s%.1f %s", lastWindow.median, lastWindow.spread, aMove ? "MOVE" : "");
+    if (bOk) snprintf(line2, sizeof(line2), "B%d s%.1f P%d%s", bRssi, bSd, bPirAny, bMove ? " M" : "");
+    else     snprintf(line2, sizeof(line2), "B no answer");
+    showOnLcd(line1, line2);
 }
 
 void controllerLoop() {
-    if (!Serial.available()) return;
-    char c = Serial.read();
-    if (c != 'r' && c != 'R') return;
-    findEchoServer();
-    runSeries();
+    if (Serial.available()) {
+        char c = Serial.read();
+        if (c == 'r' || c == 'R') {
+            monitorOn = false;
+            findEchoServer();
+            runSeries();
+        } else if (c == 'm' || c == 'M') {
+            monitorOn = !monitorOn;
+            if (monitorOn) {
+                findEchoServer();
+                window = Window();
+                Serial.printf("MOVE_MONITOR on=1 threshold_db=%.1f\n", KMoveSpreadDb);
+                showOnLcd("Move monitor", "starting...");
+            } else {
+                Serial.println("MOVE_MONITOR on=0");
+                showOnLcd("Move monitor off", "m=on r=bandwidth");
+            }
+        }
+    }
+    if (monitorOn && sampleWindow()) reportMovement();
 }
 
 // =============================================================================
@@ -388,6 +558,7 @@ void setup() {
 
     pinMode(KPinRole, INPUT_PULLUP);
     isEchoServer = digitalRead(KPinRole) == LOW;
+    if (isEchoServer) pinMode(KPinPir, INPUT);    // HC-SR501 drives the line itself
     const char* hostName = isEchoServer ? KEchoName : KControllerName;
     Serial.printf("ROLE role=%s\n", isEchoServer ? "echo" : "controller");
 
@@ -430,5 +601,5 @@ void loop() {
     }
     if (isEchoServer) echoLoop();
     else              controllerLoop();
-    delay(isEchoServer ? 0 : 20);
+    delay(isEchoServer ? 0 : 5);
 }

@@ -513,6 +513,38 @@ B echoed 705 of 705 packets (5 warm-up + 7 × 100), `echo_restarted=0`.
 ### Notes
 - No MAC addresses, personal device names or credentials in this PR.
 
+## Lab 8: movement monitor, slave B reports RSSI + PIR + power (phase 2a, first result)
+
+### What
+- `src/lab8_bandwidth.cpp`: movement monitor added to the 8.6 firmware (same build on both boards, role jumper GPIO 42 on B).
+  - Both boards read the router's RSSI every 100 ms; each 1 s window gives median and spread.
+  - B samples its PIR (GPIO 14) and answers `MEAS?` with its window, PIR state and INA226 power.
+  - A: `m` starts/stops the monitor and prints one `MOVE` line per second for both links (LCD shows both); `r` still runs the bandwidth test.
+  - A skips the bandwidth series when B doesn't answer `STATUS?` (no 6-minute timeout run); fallback address 192.168.32.6; LCD buffer warning fixed.
+- `src/lab8_wifi.md`: new section "Movement monitor test", feature 7 status, three photos.
+- `src/lab8_wifi_requirements.md` + `.pdf`: HW-11 verified, FR-RADAR-4 first result, test table row.
+- `src/lab8_photo_of_router_in_livingroom_on_sofa.jpg`, `src/lab8_photo_of_echo_server_in_livingroom_on_sideboard.jpg`, `src/lab8_photo_of_echo_server_in_bathroom_on_washing_machine.jpg` (1600 px, no metadata).
+
+### Test
+Layout: links form a V from the router. A ≈ 4 m from the router, B on the washing machine ≈ 12–13 m from the router.
+
+| Period | A–router | B–router | B's PIR |
+|---|---|---|---|
+| Still | −61 dBm, spread ≈ 0.4 dB | −56 dBm, spread ≈ 0.1 dB | partly active |
+| Walking across A's leg | down to −64…−65 dBm | unchanged | quiet |
+| Walking across B's leg | stays ≈ −65 dBm | spread up to 4.8 dB, down to −60.7 dBm | active |
+
+- Only the link whose leg is crossed reacts, so the reacting link gives the direction of movement from the router.
+- With B close to the router (−43 dBm) its link hardly reacted (spread max 0.8 dB).
+- The fixed 2.0 dB spread threshold catches only part; empty-room calibration with a level-drop criterion is next.
+
+### Problems solved
+- `b_ok=0`: B still had the 8.6 firmware (no `MEAS?`); reflashed.
+- A used fallback .51 when mDNS failed after B's power cycle; fallback now .6, and the series is skipped if B is missing.
+
+### Notes
+- No credentials, SSIDs or MAC addresses in this PR.
+
 ## Note: AI support
 
 This project was created with the help of Claude (Anthropic), which assisted

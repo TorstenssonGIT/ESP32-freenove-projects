@@ -95,7 +95,7 @@ network (`DIRECT-93-HP OfficeJet 8010`), which has no internet access.
 | 4 | Print a scan report on the HP printer over Wi-Fi | Target printer: HP OfficeJet 8010 series, reached through its Wi-Fi Direct network. The ESP32 scans nearby networks, then sends a plain-text report to port 9100 (JetDirect/raw), ending with a form feed. Each network: SSID as ASCII text and as hex (same as `ssid="…"` and `ssid_hex=` on Serial; non-printable characters as `?` in the text), RSSI, channel, security; open networks marked. | PC test passed: plain text to port 9100 over Wi-Fi Direct printed correctly (no PCL needed). ESP32 firmware planned (8.7). |
 | 5 | Run a Wi-Fi bandwidth test | Use a controlled endpoint and a bounded test; show the result/status on the LCD. | Done (8.6, router mode): one firmware `lab8_bandwidth.cpp`, role set by a jumper (GPIO 42 to GND = echo server B). 100 UDP packets per size 32–1460 B: 0 lost in two runs, median RTT 5.4–8.3 ms, up to 2.7 Mbit/s; A ≈ 0.93 W, B ≈ 0.67 W during a series. Direct mode and web page output planned. |
 | 6 | Browse to the ESP32 and type text for the LCD | Serve a basic page from the ESP32; submitted text is shown on the existing LCD. This is a simple browser page, not a phone app. | Planned |
-| 7 | Wi-Fi radar: direction and movement | Find the direction to the router with a motor-turned reflector around the antenna; detect movement from changes in signal strength (see `lab8_radar_reflector.md`, `lab8_wifi_rt_design.md`). | Hardware verified: motor (4076 half steps per turn) and TMAG5273 index. Reflector and radar firmware: phase 1 planned (KK3). |
+| 7 | Wi-Fi radar: direction and movement | Find the direction to the router with a motor-turned reflector around the antenna; detect movement from changes in signal strength (see `lab8_radar_reflector.md`, `lab8_wifi_rt_design.md`). | Hardware verified: motor (4076 half steps per turn) and TMAG5273 index. Reflector and radar firmware: phase 1 planned (KK3). Movement monitor (phase 2a, first result 2026-11-22): B reports its router RSSI, PIR and power to A every second; movement on one leg of the V changes only that board's link (see "Movement monitor test"). |
 | 8 | Climate sensors, power measurement and motor | Read the HS3003 (box), SHT31-D (steam) and DHT11 (room); measure voltage, current and power with the INA226; turn the motor and find the index with the TMAG5273. | Motor and sensor test done: HS3003 (0x44), SHT31-D (0x45) and DHT11 agree within about 1.5 °C / 2 % RH; TMAG5273 index works; INA226 at rest 5.27 V / 86–90 mA / ≈ 460 mW; motor 4076 half steps per turn. SHT31-D heater and DHT11 recovery check pending. |
 
 ## Build and test approach
@@ -260,6 +260,43 @@ and saved in the ESP32's flash memory (NVS).
 - mDNS (`lab8-esp32.local`) may be blocked by some routers or guest
   networks; the IP shown on the LCD is the fallback address.
 
+## Movement monitor test (phase 2a, first result)
+
+Firmware: `lab8_bandwidth.cpp` (same build on both boards, role jumper GPIO 42 on B).
+On A, `m` starts the monitor. Both boards read the router's RSSI every 100 ms;
+each 1 s window gives a median and a spread (standard deviation). A asks B
+`MEAS?` every second; B answers with its window, its PIR (ground truth) and its
+power. A prints one `MOVE` line per second for both links.
+
+**Layout (2026-11-22).** The links form a V with the router at the point:
+
+| Unit | Place | From the outer wall | From the router |
+|---|---|---|---|
+| Router (ZTE MC888 Pro) | living room | ≈ 3.5 m | – |
+| A (`lab8-esp32`) | desk | ≈ 1.2 m | ≈ 4.5 m |
+| B (`lab8-echo`, power bank, PIR) | on the washing machine (bathroom) | ≈ 5 m | ≈ 14 m |
+
+**Result (1 s windows, averaged per period):**
+
+| Period | A–router | B–router | B's PIR | Reading |
+|---|---|---|---|---|
+| Still | −61 dBm, spread ≈ 0.4 dB | −56 dBm, spread ≈ 0.1 dB | partly active (B being placed) | baseline |
+| Walking across A's leg | level down to −64…−65 dBm | unchanged, −56 dBm | quiet | only A's link reacts |
+| Walking across B's leg | stays low, ≈ −65 dBm | spread up to 2.8–4.8 dB, level down to −60.7 dBm | active | B's link reacts |
+
+- Movement on one leg of the V changes only that leg's link, so the link that
+  reacts gives the direction of the movement from the router. An obstruction
+  near the router, where the legs meet, affects both.
+- A first test with B in the living room, close to the router (−43 dBm), showed
+  almost no change on B's link (spread max 0.8 dB) while the PIR saw movement:
+  a strong, short link is not sensitive. B was then moved further away.
+- A fixed 2.0 dB spread threshold catches only part of the movement. A drop in
+  level against an empty-room baseline is the better indicator.
+- Next step (FR-RADAR-4): 30 s empty-room calibration per link; flag movement
+  when the median drops ≥ 2 dB below the baseline or the spread exceeds the
+  baseline's maximum.
+- Power during the monitor: B ≈ 0.67–0.77 W (≈ 130–145 mA) on the power bank.
+
 ## Photos
 
 ![Board A set-up: ESP32-S3, LCD, Modulino Thermo and DHT11](lab8_photo_of_board_set-up.jpg)
@@ -279,6 +316,12 @@ and saved in the ESP32's flash memory (NVS).
 ![Board A and board B: B with its own INA226 cable and the PIR](lab8_photo_of_board_a_and_board_b.jpg)
 
 ![Router client list (feature 2): lab8-echo and lab8-esp32 on 2.4 GHz, MAC addresses hidden, other devices cropped](lab8_screenshot_router_client_list.png)
+
+![The router (ZTE MC888 Pro) in the living room: the radio source for the movement monitor](lab8_photo_of_router_in_livingroom_on_sofa.jpg)
+
+![Board B (echo server) on the power bank, first placement on the living-room sideboard: PIR, INA226 and role jumper](lab8_photo_of_echo_server_in_livingroom_on_sideboard.jpg)
+
+![Board B on the power bank, test placement on the washing machine (bathroom), about 14 m from the router](lab8_photo_of_echo_server_in_bathroom_on_washing_machine.jpg)
 
 ## Security
 
