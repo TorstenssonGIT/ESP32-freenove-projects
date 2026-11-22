@@ -435,6 +435,34 @@ and verified, and documentation improvements.
 - [x] Board B: INA226 found and measuring
 - [x] No passwords; no GPS in the photo
 
+## Lab 8: board B hardware test (INA226 + PIR)
+
+### What
+- `src/lab8_board_b_test.cpp`: test sketch for board B (lab8-echo, N16R8).
+  - Scans the I2C bus on GPIO 1/2 and finds the INA226 by its TI ID.
+  - Prints a POWER line (V, mA, mW) every 2 s.
+  - Prints a PIR line on every change of the HC-SR501 output (GPIO 14), with a 60 s warm-up flag.
+- `platformio.ini`: `build_src_filter` set to the board B test.
+
+### Hardware
+- INA226 on GPIO 1/2 with 10 kΩ pull-ups to 3V3; shunt R100 = 0.1 Ω.
+- HC-SR501: VCC 5 V, OUT GPIO 14, GND; jumper H; Tx and Sx fully anticlockwise.
+
+### Test results
+- `INA226 ok=1 addr=0x44 manufacturer=0x5449 device=0x2260`
+- At rest: 5.30 V / ~41 mA / ~215 mW (a peak of ~230 mW every ~14 s from board activity).
+- Wire test: GPIO 14 reads 0 and 1 correctly.
+- PIR: 1 on movement, 0 about 1 s after movement stops (after the pots were turned fully anticlockwise).
+
+### Problems solved
+- INA226 not found: no pull-ups, and a broken SCL jumper wire.
+- PIR stuck high: the hold time was too long and the range too wide; fixed by turning Tx and Sx fully anticlockwise.
+
+### Notes
+- Upload with `--upload-port COM4 --monitor-port COM4`.
+- Before uploading to board A again, change `build_src_filter` back to the motor test.
+- No credentials in this PR.
+
 ## Note: AI support
 
 This project was created with the help of Claude (Anthropic), which assisted
