@@ -588,6 +588,20 @@ A person within about 1 m of a board changes its link more (up to ≈ 10 dB) tha
 - Web page tested in a browser with test data (light, dark, phone width); on board A: page works at http://lab8-esp32.local/ with baselines and thresholds after calibration (screenshot added).
 - No credentials, SSIDs or MAC addresses in this PR.
 
+## Lab 8: KK2 design report updated with today's results
+
+### What
+- `src/lab8_kk2_design_report.md` + `.pdf` (27 pages):
+  - 4.6: new rows for `lab8_board_b_test.cpp` and `lab8_bandwidth.cpp` (role jumper, echo, movement monitor, calibration, web page).
+  - 4.7: results for the PIR, the 8.6 bandwidth test (0 lost, 32–1460 B, up to 2.7 Mbit/s), movement monitor tests 2–4; chart of test 2 and screenshot of the live page.
+  - 4.8: six new problems and solutions (1460-byte UDP limit, PIR hold time, PIR heat triggers, mDNS/fallback address and old firmware on B, a too-strong link, a person shifting the baseline).
+  - 6: running rig now includes board B on a power bank and the live movement page.
+  - 7 (new): Conclusions – eight conclusions from the tests (the idea and concept work, but the RSSI variation is not easy to interpret; presence of a person around the Wi-Fi source or a receiver can be detected; calibration essential; direction from link geometry; link strength; PIR vs radio; network not the bottleneck; platform limits), the outlook (the motorized reflector should pinpoint the disturbance) and the next steps for KK3.
+
+### Notes
+- The chart and screenshot are the files already merged in `src/`.
+- No credentials, SSIDs or MAC addresses in this PR.
+
 ## Note: AI support
 
 This project was developed with assistance from Claude (Anthropic), which

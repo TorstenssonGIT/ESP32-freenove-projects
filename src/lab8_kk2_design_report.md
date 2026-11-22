@@ -709,6 +709,8 @@ void collectScanIfDone() {
 | `src/lab8_wifi_web_status.cpp` (further) | `buildStatusJson()` / `escapeJson()`, `startClock()` / `reportClockIfNewlySet()`, `safeSsid()` | FR-WEB-2, FR-WEB-5, NFR-CLK-1 |
 | `src/lab8_sensor_test.cpp` | `scanSensorBus()`, `readHs3003()`, `readDht11()` | HW-4, HW-8 |
 | `src/lab8_motor_and_sensor_test.cpp` | `startMove()` / `finishMove()`, `sampleIndex()`, `setupTmag()` / `readTmagMagnitude()`, `readSht31()` (CRC-8), `setupIna()` / `readIna()`, `samplePower()`, `scanBus()` | HW-3, HW-7…10 |
+| `src/lab8_board_b_test.cpp` | `setupIna()`, `reportPower()`, `checkPir()` | HW-2, HW-3, HW-11 |
+| `src/lab8_bandwidth.cpp` | One firmware for A and B, role by jumper (GPIO 42 to GND = echo server). Echo: `handleEchoPacket()` (`STATUS?`, `MEAS?`). Controller: `sendOne()`, `runSeries()`, `sampleWindow()` / `finishWindow()`, `reportMovement()`, `startCalibration()` / `stepCalibration()`, web page `handleApiMove()` | FR-BW-1…4, 6, 7, FR-RADAR-4, HW-11, SEC-7 |
 | `tests/*.py` | Smoke tests: parse the Serial lines or the JSON and return exit code 0 on PASS | NFR-TEST-1 |
 
 The full, commented source is in the repository.
@@ -726,6 +728,15 @@ The full, commented source is in the repository.
 | Motor | 4076 half steps per turn in 12.2 s, back to 0 every time |
 | Index (TMAG5273) | Background 0.04 mT; the magnet gives up to 80 mT per axis |
 | Power (INA226) | At rest 5.27 V / 85–90 mA / ≈ 450–470 mW. Motor through the shunt: 294 mA (max 390) / 1.5 W, and the voltage dipped to 5.11 V. Motor 5 V tapped before the shunt: ESP32 98 mA / 508 mW, still a 0.16 V dip (shared 1 m cable). Motor on its own USB-C cable: ESP32 98 mA / 514 mW, dip only 0.03 V (5.27 → 5.24 V). Board B (no LCD, no sensors): 5.30 V / 41.6 mA / 221 mW at rest. Preliminary: more data needed for KK3 (longer logging, Wi-Fi on) |
+| PIR (board B) | Wire test on GPIO 14 passed; OUT 1 on movement, 0 about 1 s after it stops (both pots fully anticlockwise) |
+| Bandwidth (8.6, router mode) | 100 UDP packets per size 32–1460 B, two runs: **0 lost**, median RTT 5.4–8.3 ms, up to 2.7 Mbit/s (one packet at a time). A ≈ 0.93 W, B ≈ 0.67 W during a series |
+| Movement monitor, V layout (test 2) | A 4.5 m and B 14 m from the router on two legs of a V. Crossing A's leg: A −3…−6 dB, B unchanged. Crossing B's leg: B dip to −75 dBm, spread up to 5 dB, confirmed by B's PIR. The link that reacts gives the direction |
+| Person next to a board (test 3) | A person within ≈ 1 m of a board changed its link up to ≈ 10 dB, more than any crossing (3–6 dB): the body becomes part of the antenna, like a car key held to the head |
+| Calibrated monitor (test 4) | `k` records 30 s of empty room per link. ≈ 140 s of quiet room: **no false alarm** on either link; walking detected (drops 4–6 dB). Links 1 m apart on the same line could not tell 3 m from 9 m |
+
+![Movement monitor, test 2: crossing one leg of the V changes that link](lab8_chart_move_monitor_v_layout.png)
+
+![Live movement page on board A after calibration](lab8_screenshot_move_monitor_web_page.png)
 
 ![Serial monitor: motor and sensor test (I2C scan, index, power, three hygrometers)](lab8_screenshot_motor_and_sensor_test_monitor.png)
 
@@ -745,6 +756,12 @@ The full, commented source is in the repository.
 | Board B's INA226 not found on the I2C bus | Swapping the INA226 modules showed the modules were fine. Board B has no LCD, so nothing pulled the bus up: 10 kΩ pull-ups added from GPIO 1/2 to 3V3. The last fault was a broken short jumper wire on SCL (GPIO 2): the line stayed at 3.3 V while the program ran |
 | Measuring power without breaking Serial | Only the 5 V wire is cut through a window in the cable; data and ground untouched |
 | Reflector angle: the motor axle is blocked at both ends | Index with a magnet and a 3D Hall sensor instead of an absolute encoder; self-calibration of steps per turn |
+| 1472-byte UDP packets all "lost" | The Arduino UDP library receives at most 1460 bytes; B echoed them cut short. Largest size set to 1460, and cut/changed packets are counted apart from losses |
+| PIR output stuck high for minutes | Hold time and range too large: both pots turned fully anticlockwise, then 1 → 0 about 1 s after movement |
+| PIR triggering every 2.5–3 s with nobody there | A mug over the PIR stopped it, so heat, not radio: warm air from a water-heated towel rail and a warm pipe. Fixed by aiming the PIR away; next to the fridge it stayed active |
+| A could not reach B after a power cycle (`b_ok=0`, all packets lost) | mDNS failed once and the fallback address was wrong (.51 not reserved, B had .6); B also still had old firmware. Fallback set to .6, B re-flashed, and the bandwidth series is skipped if B does not answer |
+| A link that was strong and short (−43 dBm) hardly reacted to a person | B moved further away (−56 to −62 dBm), with the path through the walking area |
+| A person at the desk shifted A's baseline | Empty-room calibration with nobody near a board; a lasting change near a board read as "someone is close to it" |
 | `pio.exe` blocked by Windows Application Control | PlatformIO run through Python (`python -m platformio`) |
 | Git line endings, wrong branch, merge conflicts in the PR log | Windows Git; one branch per step; conflicts resolved by keeping both sections |
 | Phone photos of several MB, whose metadata can include the GPS position | Resized to 1600 px and all metadata removed before committing; checked: no GPS in the repo's photos |
@@ -872,7 +889,28 @@ building, with presence detection without cameras.
 | Design description | This report and the documents in section 0 |
 | Code | `src/` and `include/`, commented, with references to the requirement IDs and the plan |
 | Git repo | `TorstenssonGIT/ESP32-freenove-projects`, branch and pull request per step |
-| Running rig | Board A with LCD, sensors and web page (photos in section 3 and 4) |
+| Running rig | Board A with LCD, sensors and web page; board B (echo server, PIR, INA226) on a power bank; live movement page at `http://lab8-esp32.local/` (photos and charts in sections 3 and 4) |
+
+# 7. Conclusions
+
+| # | Conclusion | Based on |
+|-|------------------------------------------------------------|--------|
+| 1 | **The idea and the concept work, but the RSSI variation is not easy to interpret.** Two ESP32-S3 boards, listening only to the router's own beacons, detect a person moving between them and the router; no extra transmitter is needed, the existing Wi-Fi source is the illuminator. But a change in RSSI can mean a person crossing a link, a person standing near a board or the router, or just reflections in the room, and it comes in whole dB with a few dB of noise. Reading it needs a calibrated baseline, both the level and the spread, and the layout of the links. | Tests 1–4 (4.7) |
+| 2 | **The presence of a person around the Wi-Fi source or a receiver can be detected.** A person within about 1 m of a receiving board changes its link by up to about 10 dB, more than any crossing (3–6 dB). A person near the router, where the links meet, changes both links at once. Receivers must therefore be placed where nobody sits, and calibrated with nobody near them. | Tests 2 and 3 |
+| 3 | **Calibration is essential.** A fixed spread threshold misses most movement. With a 30 s empty-room baseline per link, a quiet room gave no false alarm for about 140 s, and walking gave 4–6 dB drops that were detected. | Test 4 |
+| 4 | **Direction comes from the geometry of the links.** With the boards on two legs of a V, only the crossed leg reacts, which gives the direction from the router. Two links 1 m apart along the same line could not tell 3 m from 9 m. Finer direction needs the steered beam (the reflector) and more links (board C). | Tests 2 and 3 |
+| 5 | **The link must be neither too strong nor too weak.** A short link at −43 dBm hardly reacted; links at −55 to −65 dBm worked well. | Tests 1–2 |
+| 6 | **The PIR and the radio complement each other.** The PIR is a good reference but is triggered by warm air (towel rail, warm pipe, fridge) and must be aimed with care. The radio does not see heat, but it does see people near a board. | Board B tests |
+| 7 | **The network is not the bottleneck.** UDP between the boards: 0 lost packets, median round trip 5–8 ms, so a report every second is easily fast enough. | 8.6 |
+| 8 | **The platform sets the limits.** The ESP32 gives RSSI in whole dB, about ten beacons per second, and only 2.4 GHz. That is enough to detect movement and presence, but not to measure fine angles without the reflector. | 3.5, all tests |
+
+**Outlook:** The fixed links show *that* someone is moving and roughly in which
+direction. The hope is that the motorized reflector can **pinpoint the
+disturbance**: by turning a narrow beam and seeing in which angle the signal
+changes, the direction can be measured instead of guessed from which link reacts.
+
+**Next (KK3):** build the reflector and run radar phase 1; repeat the calibrated
+test in the V layout; add board C as a third link; log data for graphs (8.6b).
 
 **AI Assistance:** This project was developed with assistance from Claude
 (Anthropic), which supported coding, documentation and diagram creation.
