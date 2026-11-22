@@ -137,7 +137,7 @@ I = inspection (code, files or documentation).
 
 | ID | Requirement | Pri | Verif. | Status |
 |-----|------------------------------|--|---|--------|
-| FR-CLIENT-1 | Clients on the router network shall be listed and classified from an authorized source (the router's client list). | C | M | Planned |
+| FR-CLIENT-1 | Clients on the router network shall be listed and classified from an authorized source (the router's client list). | C | M | Verified 2026-11-22 (router page: device name, MAC, IP address, Wi-Fi band, manage/block; `lab8-esp32` 192.168.32.2 and `lab8-echo` 192.168.32.6, both on 2.4 GHz; no wired clients; other household devices not part of the test) |
 | FR-LCD-1 | The web page shall offer a form whose text is shown on the LCD. | C | M | Planned |
 | FR-RADAR-1 | Phase 1: board A shall step its reflector through 24 angles (15°, 360°), recording the router's beacons (RSSI, channel, UTC) in a 4 s window per angle with the motor at rest and coils off. | C | T | Planned |
 | FR-RADAR-2 | Phase 1: the median per angle shall be fitted to a Gaussian with a floor, giving the router's direction θ₀, beam width σ, leakage C and contrast A/C; a sweep without reflector shall serve as reference. | C | M | Planned |
@@ -199,7 +199,8 @@ I = inspection (code, files or documentation).
 | 8.6c | FR-REFL-1…2 | polar chart | Planned |
 | 8.7 | FR-PRINT-1…3 | manual (printout) | Planned |
 | 8.5b data and graphs | FR-DATA-1…6, NFR-RT-4…9 | collector loss/damage test; RT jitter and offset logs | Planned |
-| Features 2, 6, 7 | FR-CLIENT-1, FR-LCD-1, FR-RADAR-1…5, SEC-8, HW-7 | to be defined | Planned |
+| Feature 2 | FR-CLIENT-1 | manual check of the router's client list | Verified 2026-11-22 |
+| Features 6, 7 | FR-LCD-1, FR-RADAR-1…5, SEC-8, HW-7 | to be defined | Planned |
 
 # 8. Open items
 
