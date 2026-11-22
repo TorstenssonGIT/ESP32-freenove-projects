@@ -377,6 +377,38 @@ turns; at rest (coils off) the three hygrometers and the INA226 are read.
 ### Security checklist
 - [x] No passwords in the diff (no Wi-Fi in this sketch)
 
+## Lab 8 – KK2: design report, documentation, motor and sensor test
+
+### Summary
+Everything for KK2: the design report (steps 1–6), the design documents, and the
+verified motor and sensor set-up on board A.
+
+### Changes
+- **Design report** `lab8_kk2_design_report.md/.pdf` (new): PMWR concept, requirements,
+  rig and architecture, beam width analysis, code chapters (connect, web page, scanning),
+  results, problems and solutions, future prototype with BoM (2 229 kr), AI and IPR statements.
+- **Documents** (new or updated): requirements, real-time design, radar reflector,
+  risk analysis (section 10, network exposure).
+- **Code**: `lab8_motor_and_sensor_test.cpp` (new): motor, TMAG5273 index, HS3003,
+  SHT31-D, DHT11, INA226 on the LCD bus; demo mode. `lab8_wifi_scan.cpp`: comment fixes.
+- **Diagrams**: overview (boards A/B/C, BoM, Wi-Fi vs 5G), sensor wiring, future
+  prototype, timing diagrams, 8.6 and 8.7 block diagrams.
+- **Photos**: motor and sensor set-up, Serial monitor screenshot.
+- `lab8_wifi.md`: new goal (PMWR), test network, feature rows 7–8, AI and IPR sections.
+- `platformio.ini`: motor and sensor test active, AccelStepper.
+
+### Results (board A)
+- Motor 4076 half steps per turn; index background 0.04 mT.
+- HS3003, SHT31-D and DHT11 agree within about 1.5 °C / 2 % RH.
+- INA226: 5.27 V / 85 mA / ≈ 450 mW at rest; with the motor on its own USB-C cable the
+  dip while turning dropped from 0.16 V to 0.03 V.
+
+### Checks
+- [x] Builds, uploads and runs on board A
+- [x] All I2C devices found on both buses
+- [x] Files verified with SHA-256 checksums
+- [x] No passwords; neighbouring SSIDs hidden; no GPS in photos
+
 
 ## Note: AI support
 
