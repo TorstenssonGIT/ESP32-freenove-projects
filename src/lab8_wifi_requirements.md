@@ -46,7 +46,7 @@ I = inspection (code, files or documentation).
 | HW-8 | DHT11 | Temperature and humidity sensor module (one-wire) | The kit's DHT11 (DATA GPIO 14, 3.3 V, 10 kΩ pull-up on the module) shall sit above the box as the room reference, to verify that the SHT31-D has recovered after each steam condition: the offset SHT31-D − DHT11 after drying shall be within ±2 % RH of the offset before. | S | M | Verified (wiring, readings); check Planned |
 | HW-9 | SHT31-D | Temperature and humidity sensor board with built-in heater (I2C, Qwiic) | An SHT31-D with heater (address 0x45 by its address jumper, last in the Qwiic chain on a 40 cm cable) shall measure the humidity above the steam. | S | M | Verified (reading; heater not yet used) |
 | HW-10 | TMAG5273 | 3D Hall-effect magnetic sensor board (I2C, Qwiic), with Ø5×3 mm magnet | A TMAG5273 3D Hall sensor (0x35) on the same bus shall detect the reflector's index magnet. | C | M | Verified (background 0.04 mT, magnet up to 80 mT per axis) |
-| HW-11 | HC-SR501 PIR | Passive infrared (PIR) motion sensor | Board B shall have an HC-SR501 PIR sensor (VCC 5 V, OUT GPIO 14, jumper on H, shortest hold time) as ground truth for movement; readings shall be ignored for 60 s after power-on. | C | M | Wired (VCC, OUT GPIO 14, GND; jumper on H); test Planned |
+| HW-11 | HC-SR501 PIR | Passive infrared (PIR) motion sensor | Board B shall have an HC-SR501 PIR sensor (VCC 5 V, OUT GPIO 14, jumper on H, shortest hold time) as ground truth for movement; readings shall be ignored for 60 s after power-on. | C | M | Verified: OUT switches 1 on movement, 0 about 1 s after (Tx and Sx fully anticlockwise); reported to A in every `MEAS` answer |
 | HW-5 | ESP32-S3 (all boards) | Freenove ESP32-S3 WROOM development boards (A: N8R8, B: N16R8, C) | GPIO 19/20 (native USB), the boot pins (0, 3, 45, 46) and the pins used by flash and PSRAM shall not be used for wiring. | M | I | Verified |
 | HW-6 | USB power cable | USB cable that powers the measured board | During power measurement the measured cable shall be the board's only power source. | M | M | Planned |
 | HW-7 | 28BYJ-48 + ULN2003, reflector | 5 V stepper motor with Darlington driver board; foil-and-paper half-cylinder | The radar shall use a 28BYJ-48 stepper motor with ULN2003 driver (IN1–IN4 on GPIO 4–7, camera unplugged; 5 V from its own USB-C power cable, not through the INA226; shared GND) turning a cylindrical reflector (Ø 6.2 cm, foil on 180°, ≥ 6 cm high) around the antenna; see `lab8_radar_reflector.md`. | C | M | Motor Verified (4076 half steps, 12.2 s per turn; own supply: dip 0.03 V); reflector Planned |
@@ -143,7 +143,7 @@ I = inspection (code, files or documentation).
 | FR-RADAR-2 | Phase 1: the median per angle shall be fitted to a Gaussian with a floor, giving the router's direction θ₀, beam width σ, leakage C and contrast A/C; a sweep without reflector shall serve as reference. | C | M | Planned |
 | FR-RADAR-6 | Before measuring, the radar shall home on the index (TMAG5273 + magnet, index = 180°) and self-calibrate during two full turns without radio measurements: steps per turn, background field per angle, index thresholds, direction of rotation, repeatability within ±1 step. During measurement it shall rotate continuously in one direction and re-reference the step count at every index pulse. | C | T | Planned |
 | FR-RADAR-3 | The router channel shall not be locked; it shall be logged with every value, the baseline calculated per channel, and values near a channel change flagged. | C | I | Planned |
-| FR-RADAR-4 | Phase 2a: slaves B and C shall listen to the router beacons in the same windows; movement shall be detected as increased variation per link against an empty-room calibration, giving a sector. | C | M | Planned |
+| FR-RADAR-4 | Phase 2a: slaves B and C shall listen to the router beacons in the same windows; movement shall be detected as increased variation per link against an empty-room calibration, giving a sector. | C | M | First result 2026-11-22 (slave B only, no calibration yet): B reports RSSI window, PIR and power to A every second; with A and B on two legs of a V from the router, walking across A's leg lowered A's level 3–4 dB with B unchanged, walking across B's leg gave B a spread up to 4.8 dB and a 4 dB drop. Calibration planned. |
 | FR-RADAR-5 | Phase 2b: A, B and C shall take turns transmitting bursts in NTP-scheduled slots with guard times; A's reflector shall home in within the sector, one angle per round. | C | M | Planned |
 
 # 5. Non-functional requirements
@@ -200,6 +200,7 @@ I = inspection (code, files or documentation).
 | 8.7 | FR-PRINT-1…3 | manual (printout) | Planned |
 | 8.5b data and graphs | FR-DATA-1…6, NFR-RT-4…9 | collector loss/damage test; RT jitter and offset logs | Planned |
 | Feature 2 | FR-CLIENT-1 | manual check of the router's client list | Verified 2026-11-22 |
+| Movement monitor | FR-RADAR-4 (first part), HW-11 | `MOVE` lines: still, walk across A's leg, walk across B's leg | First result 2026-11-22 |
 | Features 6, 7 | FR-LCD-1, FR-RADAR-1…5, SEC-8, HW-7 | to be defined | Planned |
 
 # 8. Open items
