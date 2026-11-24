@@ -449,7 +449,7 @@ last **20 runs** (20 × 7 sizes × 2 legs = 280 values; each new run is well und
 1 % of the buffer) and serves them at `/api/bw`. It updates every 5 s (bandwidth
 only changes when `r` is run).
 
-![Bandwidth section of board A's web page (dark mode, hardware, 2026-11-24): one graph per packet size (32 B … 1460 B), each showing throughput (solid, Mbit/s, left axis) and median RTT (dashed, ms, right axis) over the stored runs, B amber and C emerald. 6 runs recorded here.](lab8_screenshot_bandwidth_persize.png)
+![Board A's full web page (dark mode, hardware, v8.6.5, 2026-11-24). Top: the two movement charts (signal strength and spread) with the narrow shaded "r" bands marking each bandwidth run — each band is the measured run duration, so the monitor timeline stays readable. Bottom: one graph per packet size (32 B … 1460 B), each showing throughput (solid, Mbit/s, left axis) and median RTT (dashed, ms, right axis) with B/C per-leg averages, 6 runs.](lab8_screenshot_bandwidth_persize.png)
 
 Running the `r` test pauses the monitor, runs the three legs, then **auto-continues
 with the monitor**. The movement charts break the line across that pause (samples
