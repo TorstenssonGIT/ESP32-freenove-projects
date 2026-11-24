@@ -683,6 +683,34 @@ narrower — measured run duration × **0.4** (was 0.67), fallback gap 9 s → *
 ## Files
 - `src/lab8_bandwidth.cpp`
 
+# PR: lab8/kk3-energy
+
+**Branch:** `lab8/KK3-energy`
+
+## Summary
+Add lab8_kk3_energy (energy budget, modes, duty cycling, method+limits,
+optimisation, radio/edge, memory/CPU incl. real RAM/flash and threads).
+RT design: add 8.1 (blocking r-test, NTP timestamps) and 8.2 (off-core
+web server cost/benefit; same-link sensing). Add lab8_kk3_checklist
+coverage index.harts on board A (/api/bw, 20-run buffer), NTP-timestamped runs, shaded r-gap on the movement charts, monitor auto-resume after r, no-store cache headers, echo RSSI on terminal. Verified on hardware at v8.6.4.
+
+## Files
+  - lab8_kk3_checklist.md
+  - lab8_kk3_energy.md
+  - lab8_kk3_energy.pdf
+  - lab8_wifi_rt_design.md
+  - lab8_wifi_rt_design.pdf
+  - lab8_wifi_system_security_check.pdf
+
+## Changes
+Add lab8_kk3_energy (energy budget, modes, duty cycling, method+limits,
+optimisation, radio/edge, memory/CPU incl. real RAM/flash and threads).
+RT design: add 8.1 (blocking r-test, NTP timestamps) and 8.2 (off-core
+web server cost/benefit; same-link sensing). Add lab8_kk3_checklist
+coverage index.harts on board A (/api/bw, 20-run buffer), NTP-timestamped runs, shaded r-gap on the movement charts, monitor auto-resume after r, no-store cache headers, echo RSSI on terminal. Verified on hardware at v8.6.4.
+
+
+
 ## Note: AI support
 
 This project was developed with assistance from Claude (Anthropic), which

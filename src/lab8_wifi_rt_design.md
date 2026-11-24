@@ -205,6 +205,70 @@ Resends only happen in a network or idle window, never while measuring.
 for a free channel and retransmits on errors). The design guarantees when the
 application starts an activity; windows and guard times absorb the variation.
 
+## 8.1 Implementation status (firmware v8.6.x)
+
+The built firmware realises the time base and sampling cadence of this design, with
+two deviations worth recording:
+
+- **The bandwidth (`r`) test is blocking, by design for that tool.** It runs the three
+  legs as a single ~5–7 s sequence rather than in non-blocking windows, so the 1 s
+  movement sampling and the web server both pause while it runs. The movement monitor
+  resumes automatically afterwards, and the pause is shown on the live charts as a
+  shaded "r" band whose width is the measured run duration. This is acceptable because
+  the bandwidth test is a manual, on-demand measurement, not part of the continuous
+  monitor.
+- **Bandwidth runs are NTP-timestamped.** Each run is tagged with the wall-clock time
+  from the shared NTP base (P1), so runs are self-dated on the terminal and on the web
+  page — a direct use of the one-global-time-base principle.
+
+## 8.2 Could the web server run off-core so it never halts?
+
+The blocking `r` test freezes the monitor and the web page for ~5–7 s. The obvious fix
+is to move the web server (and the 1 s sampler) to its own FreeRTOS task, pinned to the
+other core, so the page keeps updating — "every second is a second shown."
+
+**Benefits:** the monitor never pauses, the page stays responsive, and the pattern
+generalises to any future long operation. Energy cost is ~nil — both cores are already
+powered in the always-on design.
+
+**Cost 1 — shared data (routine).** Two tasks would read and write the same history and
+bandwidth ring buffers. This is the normal case and is handled the normal way: a
+**mutex / binary semaphore** (or a short `portMUX` critical section) around each buffer,
+with the writer holding it only while it swaps in a finished sample. Low risk, well
+understood; it is not the reason to avoid the split.
+
+**Cost 2 — sampling disturbance, and it is manageable.** The monitor and the bandwidth
+test are packets over the **same router link**. The monitor reads the RSSI of frames
+*from the router* (beacons, and data the router relays); the test's UDP packets travel
+A→router→B, so a receiving node actually sees **more** router-link RSSI samples during a
+test — the same signal a moving person disturbs, not a foreign one. What the test changes
+is the **sampling pattern**, in two ways:
+
+1. the node is briefly **deaf while its own radio transmits**, so a few samples are
+   missed, and
+2. the sample rate jumps from ~one-per-beacon (≈10/s) to one-per-packet (hundreds/s),
+   which a naïve standard deviation would misread as extra spread.
+
+Both are measurement-design problems, solved in software: timestamp each RSSI sample,
+compute spread only over comparable samples (or over the quiet gaps between packet-size
+bursts), and flag windows with too few genuine beacon samples. The radio contention is
+real but it changes *when* and *how often* we sample, not the underlying signal.
+
+**Turned around, this is an improvement.** A beacon arrives only ~10 times a second; a
+packet flood gives hundreds of router-link RSSI samples a second. Handled with
+rate-aware statistics, the test window is the **densest, highest-resolution** sensing
+window we have, not the worst. Deliberately injecting traffic to sample the channel more
+often is precisely the idea behind active Wi-Fi sensing (CSI-based systems do this on
+purpose). The `r` test could therefore double as a short, high-rate movement probe — a
+natural line for KK3/future work.
+
+**Conclusion.** The off-core web task is a sound, cheap improvement for responsiveness,
+the data-sharing is a solved problem (semaphores), and — contrary to a first reading — the
+bandwidth test need **not** corrupt the monitor, because both ride the same router link
+and the disturbance is only in the sampling pattern. So the halt is a **simplification of
+the current single-threaded design, not a necessity.** Keeping the shaded band would then
+be a choice for clarity (marking a window sampled differently), not a requirement.
+
 # 9. Monitoring
 
 Logged per cycle or round, sent in the batches and shown as graphs:
