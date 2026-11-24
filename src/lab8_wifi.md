@@ -93,7 +93,7 @@ network (`DIRECT-93-HP OfficeJet 8010`), which has no internet access.
 | 3 | Connect to an internet webpage | Join the configured 2.4 GHz network as host name `lab8-esp32`; report IP, gateway, subnet and DNS on Serial and name + IP on the LCD; check `http://connectivitycheck.gstatic.com/generate_204` (HTTP 204 = internet OK) every 30 s. | Done (8.4): connected as `lab8-esp32` (192.168.32.6, DNS 192.168.32.1), HTTP 204 in ~300 ms; smoke-test PASS on COM3; router off shows "WiFi FAIL" and recovers. 8.4b: credentials moved to NVS (XOR-obfuscated), entered via Serial menu; smoke-test PASS. |
 | 3b | Web status page on the ESP32 | Serve `http://<esp-ip>/` and `http://lab8-esp32.local/` with the latest scan result and connection/internet status (hostname, IP, gateway, subnet, DNS, HTTP result); `/api/status` returns JSON for the Python smoke-test. Feature 6 later adds the LCD text form to this same server. | Done (8.5): page at `http://<ip>/` and `http://lab8-esp32.local/`, JSON at `/api/status`; read-only, local subnet only, SSIDs escaped; connect time / reconnects / uptime and NTP local time shown; web smoke-test, 8.4 smoke-test and router off/on PASS. |
 | 4 | Print a scan report on the HP printer over Wi-Fi | Target printer: HP OfficeJet 8010 series, reached through its Wi-Fi Direct network. The ESP32 scans nearby networks, then sends a plain-text report to port 9100 (JetDirect/raw), ending with a form feed. Each network: SSID as ASCII text and as hex (same as `ssid="…"` and `ssid_hex=` on Serial; non-printable characters as `?` in the text), RSSI, channel, security; open networks marked. | PC test passed: plain text to port 9100 over Wi-Fi Direct printed correctly (no PCL needed). ESP32 firmware planned (8.7). |
-| 5 | Run a Wi-Fi bandwidth test | Use a controlled endpoint and a bounded test; show the result/status on the LCD. | Done (8.6, router mode): one firmware `lab8_bandwidth.cpp`, role set by a jumper (GPIO 42 to GND = echo server B). 100 UDP packets per size 32–1460 B: 0 lost in two runs, median RTT 5.4–8.3 ms, up to 2.7 Mbit/s; A ≈ 0.93 W, B ≈ 0.67 W during a series. Direct mode and web page output planned. |
+| 5 | Run a Wi-Fi bandwidth test | Use a controlled endpoint and a bounded test; show the result/status on the LCD. | Done (8.6, router mode): one firmware `lab8_bandwidth.cpp`, role set by a jumper (GPIO 42 to GND = echo server B). 100 UDP packets per size 32–1460 B: 0 lost in two runs, median RTT 5.4–8.3 ms, up to 2.7 Mbit/s; A ≈ 0.93 W, B ≈ 0.67 W during a series. Now 3 legs: A measures against both echo servers, B (`lab8-echo`, .51) and C (`lab8-echo2`, .52), one series each (`node=B`/`node=C`). Terminal evidence for all three boards is the combined capture under *Board C*. Each run is NTP-timestamped and the web page shows one graph per packet size (throughput + RTT over the last 20 runs). Direct mode planned. |
 | 6 | Browse to the ESP32 and type text for the LCD | Serve a basic page from the ESP32; submitted text is shown on the existing LCD. This is a simple browser page, not a phone app. | Planned |
 | 7 | Wi-Fi radar: direction and movement | Find the direction to the router with a motor-turned reflector around the antenna; detect movement from changes in signal strength (see `lab8_radar_reflector.md`, `lab8_wifi_rt_design.md`). | Hardware verified: motor (4076 half steps per turn) and TMAG5273 index. Reflector and radar firmware: phase 1 planned (KK3). Movement monitor (phase 2a, first result 2026-11-22): B reports its router RSSI, PIR and power to A every second; movement on one leg of the V changes only that board's link (see "Movement monitor test"). |
 | 8 | Climate sensors, power measurement and motor | Read the HS3003 (box), SHT31-D (steam) and DHT11 (room); measure voltage, current and power with the INA226; turn the motor and find the index with the TMAG5273. | Motor and sensor test done: HS3003 (0x44), SHT31-D (0x45) and DHT11 agree within about 1.5 °C / 2 % RH; TMAG5273 index works; INA226 at rest 5.27 V / 86–90 mA / ≈ 460 mW; motor 4076 half steps per turn. SHT31-D heater and DHT11 recovery check pending. |
@@ -264,9 +264,10 @@ and saved in the ESP32's flash memory (NVS).
 
 Firmware: `lab8_bandwidth.cpp` (same build on both boards, role jumper GPIO 42 on B).
 On A, `m` starts the monitor. Both boards read the router's RSSI every 100 ms;
-each 1 s window gives a median and a spread (standard deviation). A asks B
-`MEAS?` every second; B answers with its window, its PIR (ground truth) and its
-power. A prints one `MOVE` line per second for both links.
+each 1 s window gives a median and a spread (standard deviation). A asks B and C
+`MEAS?` every second; each answers with its window, its PIR (B only, ground
+truth) and its power. A prints one `MOVE` line per second for all links, and its
+web page shows three links (A, B, C).
 
 **Layout (2026-11-22).** The links form a V with the router at the point:
 
@@ -369,15 +370,99 @@ dashed lines. A second person sat still about 3 m from A during calibration and 
   the fridge in the kitchen).
 
   ![Live movement page on board A at http://lab8-esp32.local after calibration (dark mode; plain HTTP, so the browser shows "Not Secure")](lab8_screenshot_move_monitor_web_page.png)
+
+![Three-link movement page on board A (dark mode): moving an arm between the boards and tripping the PIR at the same time. The grey PIR bands line up with A (blue) and C (green) spiking above the 2 dB threshold, while B (the strongest link) stays low](lab8_screenshot_move_three_links.png)
 - So the calibrated monitor answers **"is someone moving?"** reliably; **"where?"**
   needs links with separate paths, as in the V layout (test 2).
 - B's PIR in the kitchen was active the whole time (warm surfaces), so it was no
   reference here.
 
-- Next step (FR-RADAR-4): repeat the calibrated test in the V layout; add board C as a third link. flag movement
-  when the median drops ≥ 2 dB below the baseline or the spread exceeds the
-  baseline's maximum.
+- **Wi-Fi leads the PIR on approach (2026-11-24).** Watching the live page, the
+  C-link spread (green) rose a second or two *before* the PIR fired: the Wi-Fi path
+  reacts to a body crossing the link while the person is still approaching, whereas the
+  PIR only triggers once they are inside its cone. So the Wi-Fi radar detects an
+  approaching person earlier than the co-located PIR — a point for the KK2 conclusions
+  and for future work (a faster "someone is coming" signal than a motion sensor).
+- Next step (FR-RADAR-4): repeat the calibrated test in the V layout; add board C as a third link.
 - Power during the monitor: B ≈ 0.67–0.77 W (≈ 130–145 mA) on the power bank.
+
+## Board C (`lab8-echo2`)
+
+Board C is the third ESP32-S3 (from the 2-pack with B). It runs the **same
+firmware as A and B**, `lab8_bandwidth.cpp`; the role and the host name come
+from jumpers read at start-up:
+
+| Board | GPIO 42 to GND | GPIO 41 to GND | Role | Host name | Planned address |
+|---|---|---|---|---|---|
+| A | – | – | Controller: bandwidth test, movement monitor, web page, LCD | `lab8-esp32` | 192.168.32.50 |
+| B | ✓ | – | Echo server, PIR, INA226 | `lab8-echo` | 192.168.32.51 |
+| C | ✓ | ✓ | Second echo server | `lab8-echo2` | 192.168.32.52 |
+
+- Without the GPIO 41 jumper, C would call itself `lab8-echo` like B, and the
+  router would see two boards with the same name.
+- C has no INA226 and no PIR yet: power is reported as 0, and the PIR pin has a
+  pull-down, so an unconnected pin reads a steady 0.
+- C answers `STATUS?` and `MEAS?` like B. The bandwidth test runs against both
+  B and C (3 legs), and the movement monitor now queries both B and C, so the
+  web page shows three links (A, B, C).
+- Wi-Fi credentials are entered once in C's setup menu and stay in its flash.
+
+**Set-up test (2026-11-24):** with both jumpers C starts as
+`ROLE role=echo host=lab8-echo2`, joins the router
+(`WIFI_STATUS connected=1 hostname=lab8-echo2 ip=192.168.32.52 rssi=-63 channel=11`)
+and reports `ECHO_READY port=5001` (`INA226 ok=0`, as expected without an INA226).
+With only the GPIO 41 jumper it started as a controller named `lab8-esp32`:
+GPIO 41 is only read when GPIO 42 is grounded.
+
+**Addresses (NFR-NET-1, 2026-11-24):** DHCP reservations (MAC-IP binding) in the
+router: A → 192.168.32.50, B → .51, C → .52; all three verified in the router's client list. The router has no
+local DNS for its clients (`nslookup lab8-esp32` finds nothing), so the boards are
+reached by their mDNS names (`lab8-esp32.local`, `lab8-echo.local`,
+`lab8-echo2.local`) or their reserved addresses. A's fallback address for B is now
+.51.
+
+![Router client list: lab8-esp32 on .50, lab8-echo on .51, lab8-echo2 on .52 (all 2.4 GHz); MAC addresses hidden](lab8_screenshot_router_three_boards_reserved.png)
+
+**All three boards together (2026-11-24):**
+
+![All three boards running together. Left – board A (controller): `BW_RESULT node=B` then `node=C` for every packet size 32–1460 B with `lost=0`, `BW_ALL done`, then `MOVE_MONITOR on` and the per-second MOVE lines. Middle – board B (`lab8-echo`) echo server: `rejected=0`, measured `rssi=-53…-54` (the strong link). Right – board C (`lab8-echo2`) echo server: `rejected=0`, measured `rssi=-64…-65` (the weaker link). Only the internal .51/.52 addresses are shown; no SSIDs or MAC addresses.](lab8_screenshot_three_boards_terminal.png)
+
+The 3-leg bandwidth (`r`) test completes against both echo servers with no lost
+packets. Each echo server also prints the router RSSI it measures. The movement
+monitor runs automatically — it starts after the boot series and resumes by itself
+after every `r` run, so there is no separate command to turn it on. The only
+Serial commands are `r` (run the bandwidth test again) and `k` (empty-room
+calibration).
+
+Board A syncs its clock over NTP at start-up (`TIME_SYNC ok=1 time=…`) and prints
+the wall-clock date and time at the head of each leg's 7 results
+(`BW_SERIES start=1 node=B time=2026-11-24 17:09:44`), so every block of 7 is
+self-dated.
+
+**On the web page:** below the two movement charts the page now shows a bandwidth
+section with **one small graph per packet size** (7 graphs, 32 B … 1460 B) in a
+responsive grid — 5 across on a laptop, 2 across on a phone. Each graph plots that
+size's history over the stored runs: **throughput** (solid line, Mbit/s, left
+axis) and **median RTT** (dashed line, ms, right axis), for B (amber) and C
+(emerald), newest run at the right. The firmware keeps a rotating buffer of the
+last **20 runs** (20 × 7 sizes × 2 legs = 280 values; each new run is well under
+1 % of the buffer) and serves them at `/api/bw`. It updates every 5 s (bandwidth
+only changes when `r` is run).
+
+![Bandwidth section of board A's web page (dark mode, hardware, 2026-11-24): one graph per packet size (32 B … 1460 B), each showing throughput (solid, Mbit/s, left axis) and median RTT (dashed, ms, right axis) over the stored runs, B amber and C emerald. 6 runs recorded here.](lab8_screenshot_bandwidth_persize.png)
+
+Running the `r` test pauses the monitor, runs the three legs, then **auto-continues
+with the monitor**. The movement charts break the line across that pause (samples
+more than 3 s apart are not joined), so the gap where the bandwidth was measured is
+visible on the time axis.
+
+**For the report:** the same `BW_RESULT` lines are also kept in a host-side log,
+`lab8_bandwidth_log.csv` (date, time, run, node, size, kbps, rtt_med_us, lost), and
+`make_bw_chart.py` re-renders the static two-panel graph below (throughput and
+median RTT) with each `r` run stacked as a dated line. (Run 1 was captured before
+the NTP change, so its time shows as `time-unknown`.)
+
+![Static summary of the 3-leg bandwidth log. Top: throughput rises from ~0.07 Mbit/s at 32-byte payloads to ~3.0 Mbit/s at 1460 bytes as the fixed per-packet overhead is amortised over more data. Bottom: median round-trip time stays ~5–7 ms across all sizes. Each `r` run is one dated line per leg — B (`lab8-echo`, amber) and C (`lab8-echo2`, emerald) — and they track each other closely; 100 packets per size, 0 lost on every size. Run 1: 2026-11-24.](lab8_chart_bandwidth_r.png)
 
 ## Photos
 

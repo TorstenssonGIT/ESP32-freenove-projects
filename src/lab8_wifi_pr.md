@@ -598,6 +598,64 @@ A person within about 1 m of a board changes its link more (up to ≈ 10 dB) tha
   - 6: running rig now includes board B on a power bank and the live movement page.
   - 7 (new): Conclusions – eight conclusions from the tests (the idea and concept work, but the RSSI variation is not easy to interpret; presence of a person around the Wi-Fi source or a receiver can be detected; calibration essential; direction from link geometry; link strength; PIR vs radio; network not the bottleneck; platform limits), the outlook (the motorized reflector should pinpoint the disturbance) and the next steps for KK3.
 
+# PR: 8.6.2 — bandwidth web visualisation (firmware v8.6.4)
+
+**Branch:** `lab8/bandwidth-webviz-8.6.2`
+
+---
+
+## Summary
+
+Adds the web visualisation for the 3-leg bandwidth test (lab task 8.6.2) and folds the
+monitor and bandwidth test into one continuous view. One firmware, role by jumper
+(A / B / C) as before. Version shown on the page, tab and Serial as **v8.6.4**.
+
+## Changes
+
+- **Per-packet-size bandwidth charts** on board A's web page: one graph per size
+  (32 B … 1460 B), each showing throughput (solid, Mbit/s, left axis) and median RTT
+  (dashed, ms, right axis) for B (amber) and C (emerald). Title shows the per-leg
+  averages. New `/api/bw` endpoint; a rotating **20-run buffer** (20 × 7 × 2 = 280
+  values) kept in RAM.
+- **NTP-timestamped runs:** board A syncs its clock at boot (`TIME_SYNC …`) and tags
+  each run (`BW_SERIES … time=YYYY-MM-DD HH:MM:SS`); runs are self-dated on the terminal
+  and the web page.
+- **r-test gap on the movement charts:** the blocking bandwidth run is drawn as a shaded
+  **r** band whose width is the measured run duration (× 0.67 for display); the movement
+  line breaks across it. Charts are now on a real-time x-axis.
+- **Monitor auto-resumes after `r`** — the `m` command was removed (the monitor runs at
+  boot and after every run).
+- **No-store cache headers** on the page and `app.js` so a reflash always shows fresh.
+- Echo servers print the router RSSI they measure on the POWER line.
+
+## Testing (hardware)
+
+- All three boards run from the one image (A controller, B `lab8-echo`, C `lab8-echo2`).
+- 3-leg bandwidth: 0 lost on every size, ~0.07 → ~3.0 Mbit/s across 32 B…1460 B; 9 runs
+  logged, page stable over >4300 s uptime.
+- Movement monitor: A/B/C all plotted, no false movement when quiet, calibration clean.
+- r-gap verified visible and sized to the measured run; auto-resume confirmed.
+- Verified on hardware at v8.6.4 (screenshots in `lab8_wifi.md`).
+
+## Security / secrets check (per project rules)
+
+- [X] `git status` reviewed before commit.
+- [X] `include/wifi_credentials.h` **not** staged (git-ignored).
+- [ ] `include/lab8_https_cert.h` / CA private key **not** staged (not part of this PR).
+- [X] No passwords, claim codes or MAC/SSID of neighbours printed on Serial / LCD / web /
+      screenshots; internal .50/.51/.52 IPs only.
+
+## Files
+
+- `src/lab8_bandwidth.cpp` — the one firmware (controller + echo roles).
+- Docs: `lab8_wifi.md` (feature list, tests, screenshots).
+
+## Notes
+
+- Versioning scheme: **v8.SECTION.N**; last digit bumps on every change, a new feature
+  area opens the next section (v8.7.0). This PR lands at v8.6.4.
+
+
 ### Notes
 - The chart and screenshot are the files already merged in `src/`.
 - No credentials, SSIDs or MAC addresses in this PR.
