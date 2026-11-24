@@ -3,11 +3,11 @@
  *  Lab 8 - 8.6 Bandwidth test + movement monitor: one firmware, role by jumper
  * =============================================================================
  *
- *  Version: v8.6.4   (shown in the web page header, the browser tab, and printed
+ *  Version: v8.6.5   (shown in the web page header, the browser tab, and printed
  *                     at boot as "FW_VERSION ...")
  *    Scheme: v8.SECTION.N, tracking the lab outline. The last digit increments
  *            on every change within a section - a fix or small feature (next:
- *            v8.6.5). New functional growth opens the next section and resets
+ *            v8.6.6). New functional growth opens the next section and resets
  *            the last digit (e.g. v8.7.0).
  *
  *    v8.6 / 8.6.1: movement monitor (A/B/C vs router, calibration, web page)
@@ -779,7 +779,7 @@ void reportMovement() {
 const char KPageHtml[] PROGMEM = R"HTML(<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Lab 8 movement v8.6.4</title>
+<title>Lab 8 movement v8.6.5</title>
 <style>
 :root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1b;--mute:#6b6a66;--line:#e2e0da;
 --a:#2563eb;--b:#d97706;--c:#059669;--pir:rgba(120,120,120,.16);--move:#dc2626}
@@ -802,7 +802,7 @@ canvas{width:100%;height:200px;display:block}
 .key{font-size:13px;color:var(--mute)}.key i{display:inline-block;width:12px;height:3px;margin:0 4px 3px 10px;vertical-align:middle}
 h1 .ver{font-size:14px;color:var(--mute);font-weight:400;margin-left:8px}
 </style></head><body><main>
-<h1>Lab 8 &ndash; movement monitor<span class="ver">v8.6.4</span></h1>
+<h1>Lab 8 &ndash; movement monitor<span class="ver">v8.6.5</span></h1>
 <p id="info">Waiting for data&hellip;</p>
 <div class="boxes">
 <div class="box"><b>Link A &ndash; router</b><span id="ma">&ndash;</span></div>
@@ -825,15 +825,15 @@ const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim
 function draw(id,rows,series,lo,hi,thr,refs){
   const c=document.getElementById(id),r=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
   c.width=w*r;c.height=h*r;const g=c.getContext('2d');g.scale(r,r);g.clearRect(0,0,w,h);
-  const L=36,R=w-6,T=6,B=h-18,W=180,GAP=9,y=v=>B-(B-T)*(v-lo)/(hi-lo);   // W=seconds shown, GAP=pause drawn at ~5%
+  const L=36,R=w-6,T=6,B=h-18,W=180,GAP=4,y=v=>B-(B-T)*(v-lo)/(hi-lo);   // W=seconds shown, GAP=pause drawn at ~5%
   // effective time axis: a pause is compressed to GAP s so it reads as a narrow band, not real width
-  const te=[];let acc=0;for(let i=0;i<rows.length;i++){if(i>0){let d=rows[i][0]-rows[i-1][0];if(d<0)d=0;if(rows[i][13]>0)d=rows[i][13]*0.67;else if(d>3)d=GAP;acc+=d}te.push(acc)}
+  const te=[];let acc=0;for(let i=0;i<rows.length;i++){if(i>0){let d=rows[i][0]-rows[i-1][0];if(d<0)d=0;if(rows[i][13]>0)d=rows[i][13]*0.4;else if(d>3)d=GAP;acc+=d}te.push(acc)}
   const tNow=te.length?te[te.length-1]:0;
   const x=t=>{const xx=R-(R-L)*(tNow-t)/W;return xx<L?L:xx},cw=(R-L)/W;
   g.fillStyle=css('--pir');rows.forEach((s,i)=>{if(s[8]&&te[i]>=tNow-W)g.fillRect(x(te[i])-cw/2,T,cw+1,B-T)});
   for(let i=1;i<rows.length;i++){if(rows[i][0]-rows[i-1][0]>3&&te[i]>=tNow-W){   // shade the r-test pause (~5% wide)
     const x0=x(te[i-1]),x1=x(te[i]);g.fillStyle='rgba(130,130,145,0.22)';g.fillRect(x0,T,x1-x0,B-T);
-    if(x1-x0>24){g.fillStyle=css('--mute');g.textAlign='center';g.font='9px system-ui';g.fillText('r',(x0+x1)/2,T+11);g.textAlign='left'}}}
+    if(x1-x0>12){g.fillStyle=css('--mute');g.textAlign='center';g.font='9px system-ui';g.fillText('r',(x0+x1)/2,T+11);g.textAlign='left'}}}
   g.strokeStyle=css('--line');g.fillStyle=css('--mute');g.font='11px system-ui';g.lineWidth=1;
   for(let k=0;k<=4;k++){const v=lo+(hi-lo)*k/4,yy=y(v);g.beginPath();g.moveTo(L,yy);g.lineTo(R,yy);g.stroke();g.fillText(v.toFixed(hi-lo<10?1:0),2,yy+4)}
   g.fillText('-3 min',L,h-4);g.fillText('now',R-22,h-4);
@@ -1077,7 +1077,7 @@ void setup() {
     // HC-SR501 drives the line itself; the pull-down keeps an unconnected pin at 0.
     if (isEchoServer) pinMode(KPinPir, INPUT_PULLDOWN);
     const char* hostName = !isEchoServer ? KControllerName : (isBoardC ? KEcho2Name : KEchoName);
-    Serial.println("FW_VERSION v8.6.4");
+    Serial.println("FW_VERSION v8.6.5");
     Serial.printf("ROLE role=%s host=%s\n", isEchoServer ? "echo" : "controller", hostName);
 
     Wire.begin(KBusSda, KBusScl, KBusHz);

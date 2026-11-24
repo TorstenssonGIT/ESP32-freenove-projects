@@ -660,6 +660,29 @@ monitor and bandwidth test into one continuous view. One firmware, role by jumpe
 - The chart and screenshot are the files already merged in `src/`.
 - No credentials, SSIDs or MAC addresses in this PR.
 
+# PR: 8.6.5 — smaller r-test gap
+
+**Branch:** `lab8/bandwidth-gap-8.6.5`
+
+## Summary
+Cosmetic follow-up to 8.6.4: the shaded `r`-test gap on the movement charts is drawn
+narrower — measured run duration × **0.4** (was 0.67), fallback gap 9 s → **4 s**, and the
+"r" label shows on narrower bands. No functional change. Version → **v8.6.5**.
+
+## Changes
+- `drawMini`/`draw` gap factor 0.67 → 0.4; `GAP` fallback 9 → 4; label threshold 24 → 12.
+- Version strings (page header, tab title, `FW_VERSION`) → v8.6.5.
+
+## Testing
+- Flash board A, hard-refresh, confirm header reads **v8.6.5** and the `r` gaps are
+  narrower but still visible with the "r" label.
+
+## Security / secrets
+- [X] `git status` reviewed; no credentials or cert files staged; no secrets in output.
+
+## Files
+- `src/lab8_bandwidth.cpp`
+
 ## Note: AI support
 
 This project was developed with assistance from Claude (Anthropic), which
