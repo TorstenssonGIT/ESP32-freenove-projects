@@ -3,11 +3,11 @@
  *  Lab 8 - 8.6 Bandwidth test + movement monitor: one firmware, role by jumper
  * =============================================================================
  *
- *  Version: v8.6.5   (shown in the web page header, the browser tab, and printed
+ *  Version: v8.7.0   (shown in the web page header, the browser tab, and printed
  *                     at boot as "FW_VERSION ...")
  *    Scheme: v8.SECTION.N, tracking the lab outline. The last digit increments
  *            on every change within a section - a fix or small feature (next:
- *            v8.6.6). New functional growth opens the next section and resets
+ *            v8.7.1). New functional growth opens the next section and resets
  *            the last digit (e.g. v8.7.0).
  *
  *    v8.6 / 8.6.1: movement monitor (A/B/C vs router, calibration, web page)
@@ -16,6 +16,10 @@
  *                  per-packet-size chart grid (throughput + RTT, last 20 runs)
  *                  on the web page, and the shaded r-test gap on the movement
  *                  charts.
+ *    v8.7.0 (8.7):  windowed UDP throughput test (Serial command `w`). A blasts
+ *                  a one-way burst and the receiver reports throughput, packet
+ *                  loss (from sequence numbers) and RFC 3550 jitter. Targets an
+ *                  echo node (`w`) or a PC running udp_perf.py (`w <ip>`).
  *
  *  Role jumper
  *  -----------
@@ -149,6 +153,8 @@ constexpr int      KPacketsPerSize = 100;
 constexpr int      KBwRunsMax      = 20;          // r-runs kept (20 x 7 sizes x 2 legs = 280 values, rotating)
 constexpr uint32_t KTimeoutUs      = 500000;     // 500 ms = lost
 constexpr int      KWarmupPackets  = 5;          // fills ARP tables, not counted
+constexpr uint16_t KPerfSize       = 1460;       // w test: UDP payload size
+constexpr uint32_t KPerfCount      = 10000;      // w test: packets per burst (~14.6 MB at 1460 B)
 
 constexpr uint8_t  KPinPir         = 14;          // HC-SR501 OUT, board B only (A has DHT11 here)
 constexpr uint32_t KSampleMs       = 100;         // RSSI/PIR sample interval
@@ -403,9 +409,23 @@ bool isLocalSender(IPAddress remote) {
     return ((uint32_t)remote & mask) == ((uint32_t)WiFi.localIP() & mask);
 }
 
-void handleEchoPacket() {
+// --- Windowed UDP throughput test (w): receiver state on the echo node --------
+// Counts a one-way burst of WD data packets and measures throughput, loss
+// (from sequence numbers) and RFC 3550 inter-arrival jitter; replies on WEND.
+struct PerfRx {
+    bool     active = false;
+    uint32_t pkts = 0, bytes = 0;
+    uint32_t firstUs = 0, lastUs = 0;
+    uint32_t maxSeq = 0; bool haveSeq = false;
+    uint32_t prevSeq = 0, ooo = 0;
+    int32_t  prevTransit = 0; bool havePrev = false;
+    float    jitterUs = 0;
+};
+PerfRx perfRx;
+
+bool handleEchoPacket() {                         // returns true if a packet was consumed
     int size = udp.parsePacket();
-    if (size <= 0) return;
+    if (size <= 0) return false;
 
     IPAddress remoteIp   = udp.remoteIP();
     uint16_t  remotePort = udp.remotePort();
@@ -413,10 +433,54 @@ void handleEchoPacket() {
     if (size > (int)KMaxPacketBytes || !isLocalSender(remoteIp)) {
         udp.clear();                              // drop it
         rejectedPackets++;
-        return;
+        return true;
     }
 
     int length = udp.read(rxBuffer, KMaxPacketBytes);
+
+    // --- Windowed UDP throughput test (w) -----------------------------------
+    // WSTART: reset the receiver window and acknowledge.
+    if (length >= 6 && memcmp(rxBuffer, "WSTART", 6) == 0) {
+        perfRx = PerfRx();
+        perfRx.active = true;
+        udp.beginPacket(remoteIp, remotePort); udp.write((const uint8_t*)"WOK", 3); udp.endPacket();
+        return true;
+    }
+    // WEND: reply with the window's statistics.
+    if (length == 4 && memcmp(rxBuffer, "WEND", 4) == 0) {
+        uint32_t durUs = perfRx.lastUs - perfRx.firstUs;
+        char rep[160];
+        int n = snprintf(rep, sizeof(rep),
+                         "WREPORT rx_pkts=%lu rx_bytes=%lu dur_us=%lu maxseq=%lu jitter_us=%.1f ooo=%lu",
+                         (unsigned long)perfRx.pkts, (unsigned long)perfRx.bytes, (unsigned long)durUs,
+                         (unsigned long)(perfRx.haveSeq ? perfRx.maxSeq : 0), perfRx.jitterUs,
+                         (unsigned long)perfRx.ooo);
+        udp.beginPacket(remoteIp, remotePort); udp.write((const uint8_t*)rep, n); udp.endPacket();
+        perfRx.active = false;
+        return true;
+    }
+    // WD <seq:4><send_us:4><filler>: a one-way data packet — count it, do not echo.
+    if (length >= 10 && rxBuffer[0] == 'W' && rxBuffer[1] == 'D') {
+        uint32_t nowUs = (uint32_t)esp_timer_get_time();
+        uint32_t seq    = ((uint32_t)rxBuffer[2] << 24) | ((uint32_t)rxBuffer[3] << 16) |
+                          ((uint32_t)rxBuffer[4] << 8)  |  (uint32_t)rxBuffer[5];
+        uint32_t sendUs = ((uint32_t)rxBuffer[6] << 24) | ((uint32_t)rxBuffer[7] << 16) |
+                          ((uint32_t)rxBuffer[8] << 8)  |  (uint32_t)rxBuffer[9];
+        if (!perfRx.active) { perfRx = PerfRx(); perfRx.active = true; }   // tolerate a missed WSTART
+        if (perfRx.pkts == 0) perfRx.firstUs = nowUs;
+        perfRx.lastUs = nowUs;
+        perfRx.pkts++; perfRx.bytes += length;
+        if (!perfRx.haveSeq || seq > perfRx.maxSeq) perfRx.maxSeq = seq;
+        perfRx.haveSeq = true;
+        int32_t transit = (int32_t)(nowUs - sendUs);          // clock offset cancels in the difference
+        if (perfRx.havePrev) {
+            if (seq < perfRx.prevSeq) perfRx.ooo++;
+            int32_t d = transit - perfRx.prevTransit; if (d < 0) d = -d;
+            perfRx.jitterUs += (d - perfRx.jitterUs) / 16.0f;  // RFC 3550 smoothing
+        }
+        perfRx.prevSeq = seq; perfRx.prevTransit = transit; perfRx.havePrev = true;
+        return true;                                           // one-way: never echo WD
+    }
 
     // Status request: uptime + own power (FR-BW-6, FR-BW-7).
     if (length == 7 && memcmp(rxBuffer, "STATUS?", 7) == 0) {
@@ -429,7 +493,7 @@ void handleEchoPacket() {
         udp.beginPacket(remoteIp, remotePort);
         udp.write((const uint8_t*)reply, n);
         udp.endPacket();
-        return;
+        return true;
     }
 
     // Measurement request: last RSSI window + PIR + power (phase 2a).
@@ -445,7 +509,7 @@ void handleEchoPacket() {
         udp.beginPacket(remoteIp, remotePort);
         udp.write((const uint8_t*)reply, n);
         udp.endPacket();
-        return;
+        return true;
     }
 
     // Echo: send back unchanged (FR-BW-1).
@@ -453,10 +517,11 @@ void handleEchoPacket() {
     udp.write(rxBuffer, length);
     udp.endPacket();
     echoedPackets++;
+    return true;
 }
 
 void echoLoop() {
-    handleEchoPacket();
+    for (int i = 0; i < 32 && handleEchoPacket(); i++) {}   // drain a burst fast (w test)
     sampleWindow();
     if (millis() - lastPowerMillis >= KPowerIntervalMs) {
         lastPowerMillis = millis();
@@ -779,7 +844,7 @@ void reportMovement() {
 const char KPageHtml[] PROGMEM = R"HTML(<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Lab 8 movement v8.6.5</title>
+<title>Lab 8 movement v8.7.0</title>
 <style>
 :root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1b;--mute:#6b6a66;--line:#e2e0da;
 --a:#2563eb;--b:#d97706;--c:#059669;--pir:rgba(120,120,120,.16);--move:#dc2626}
@@ -802,7 +867,7 @@ canvas{width:100%;height:200px;display:block}
 .key{font-size:13px;color:var(--mute)}.key i{display:inline-block;width:12px;height:3px;margin:0 4px 3px 10px;vertical-align:middle}
 h1 .ver{font-size:14px;color:var(--mute);font-weight:400;margin-left:8px}
 </style></head><body><main>
-<h1>Lab 8 &ndash; movement monitor<span class="ver">v8.6.5</span></h1>
+<h1>Lab 8 &ndash; movement monitor<span class="ver">v8.7.0</span></h1>
 <p id="info">Waiting for data&hellip;</p>
 <div class="boxes">
 <div class="box"><b>Link A &ndash; router</b><span id="ma">&ndash;</span></div>
@@ -1038,6 +1103,67 @@ void startWebServer() {
                   WiFi.localIP().toString().c_str(), KControllerName);
 }
 
+// Windowed UDP throughput test (w): A blasts a burst of one-way packets to a
+// target (an echo node or a PC running udp_perf.py) and reads back the report.
+void runPerf(IPAddress target, uint16_t port, const char* label, uint16_t size, uint32_t count) {
+    if (size < 10) size = 10;
+    if (size > KMaxPacketBytes) size = KMaxPacketBytes;
+    drainUdp();
+    Serial.printf("WPERF_START target=%s ip=%s size=%u count=%lu\n",
+                  label, target.toString().c_str(), size, (unsigned long)count);
+
+    udp.beginPacket(target, port); udp.write((const uint8_t*)"WSTART", 6); udp.endPacket();
+    for (int64_t d = esp_timer_get_time() + 300000; esp_timer_get_time() < d; )   // await WOK (best effort)
+        if (udp.parsePacket() > 0) { udp.clear(); break; }
+
+    int64_t t0 = esp_timer_get_time();
+    for (uint32_t seq = 0; seq < count; seq++) {
+        txBuffer[0] = 'W'; txBuffer[1] = 'D';
+        txBuffer[2] = seq >> 24; txBuffer[3] = seq >> 16; txBuffer[4] = seq >> 8; txBuffer[5] = seq;
+        uint32_t su = (uint32_t)esp_timer_get_time();
+        txBuffer[6] = su >> 24; txBuffer[7] = su >> 16; txBuffer[8] = su >> 8; txBuffer[9] = su;
+        udp.beginPacket(target, port);
+        udp.write(txBuffer, size);
+        udp.endPacket();
+    }
+    uint32_t txUs = (uint32_t)(esp_timer_get_time() - t0);
+    double txMbps = txUs ? (double)count * size * 8.0 / txUs : 0;   // bytes*8/us = Mbit/s
+
+    char rep[200]; int rn = 0;
+    for (int attempt = 0; attempt < 6 && rn == 0; attempt++) {      // WEND / WREPORT can be lost
+        udp.beginPacket(target, port); udp.write((const uint8_t*)"WEND", 4); udp.endPacket();
+        for (int64_t d = esp_timer_get_time() + 400000; esp_timer_get_time() < d; ) {
+            if (udp.parsePacket() <= 0) continue;
+            int l = udp.read((uint8_t*)rep, sizeof(rep) - 1); if (l < 0) l = 0; rep[l] = 0;
+            if (strncmp(rep, "WREPORT", 7) == 0) { rn = l; break; }
+        }
+    }
+    if (rn == 0) {
+        Serial.printf("WPERF target=%s size=%u sent=%lu tx_us=%lu tx_mbps=%.2f rx=NO_REPORT\n",
+                      label, size, (unsigned long)count, (unsigned long)txUs, txMbps);
+        return;
+    }
+    unsigned long rxPkts = 0, rxBytes = 0, durUs = 0, maxSeq = 0, ooo = 0; float jitUs = 0;
+    sscanf(rep, "WREPORT rx_pkts=%lu rx_bytes=%lu dur_us=%lu maxseq=%lu jitter_us=%f ooo=%lu",
+           &rxPkts, &rxBytes, &durUs, &maxSeq, &jitUs, &ooo);
+    double rxMbps = durUs ? (double)rxBytes * 8.0 / durUs : 0;
+    unsigned long expected = maxSeq + 1;                          // seq starts at 0
+    long lost = (long)expected - (long)rxPkts; if (lost < 0) lost = 0;
+    double lossPct = expected ? 100.0 * lost / expected : 0;
+    Serial.printf("WPERF target=%s size=%u sent=%lu tx_us=%lu tx_mbps=%.2f "
+                  "rx_pkts=%lu lost=%ld loss_pct=%.2f jitter_ms=%.3f ooo=%lu rx_mbps=%.2f\n",
+                  label, size, (unsigned long)count, (unsigned long)txUs, txMbps,
+                  rxPkts, lost, lossPct, jitUs / 1000.0, ooo, rxMbps);
+}
+
+void runPerfAll() {                                               // against both echo nodes
+    for (int i = 0; i < KTargetCount; i++) {
+        resolveEcho(KTargets[i]);
+        runPerf(echoIp, KEchoPort, KTargets[i].label, KPerfSize, KPerfCount);
+    }
+    Serial.println("WPERF_ALL done");
+}
+
 void controllerLoop() {
     if (Serial.available()) {
         char c = Serial.read();
@@ -1057,6 +1183,22 @@ void controllerLoop() {
                 window = Window();
             }
             startCalibration();
+        } else if (c == 'w' || c == 'W') {        // windowed UDP throughput test
+            monitorOn = false;
+            String arg = Serial.readStringUntil('\n'); arg.trim();
+            uint32_t t0 = millis();
+            if (arg.length() > 0) {               // w <ip> -> a PC running udp_perf.py on KEchoPort
+                IPAddress ip;
+                if (ip.fromString(arg)) runPerf(ip, KEchoPort, "PC", KPerfSize, KPerfCount);
+                else Serial.printf("WPERF bad target '%s' (use 'w', or 'w <ip>')\n", arg.c_str());
+            } else {
+                runPerfAll();                     // both echo nodes B and C
+            }
+            pendingGapS = (uint16_t)((millis() - t0 + 500) / 1000);
+            monitorOn = true;
+            resolveMonitorTargets();
+            window = Window();
+            Serial.printf("MOVE_MONITOR on=1 threshold_db=%.1f\n", KMoveSpreadDb);
         }
     }
     if (monitorOn && sampleWindow()) reportMovement();
@@ -1077,7 +1219,7 @@ void setup() {
     // HC-SR501 drives the line itself; the pull-down keeps an unconnected pin at 0.
     if (isEchoServer) pinMode(KPinPir, INPUT_PULLDOWN);
     const char* hostName = !isEchoServer ? KControllerName : (isBoardC ? KEcho2Name : KEchoName);
-    Serial.println("FW_VERSION v8.6.5");
+    Serial.println("FW_VERSION v8.7.0");
     Serial.printf("ROLE role=%s host=%s\n", isEchoServer ? "echo" : "controller", hostName);
 
     Wire.begin(KBusSda, KBusScl, KBusHz);

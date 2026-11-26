@@ -683,6 +683,67 @@ narrower — measured run duration × **0.4** (was 0.67), fallback gap 9 s → *
 ## Files
 - `src/lab8_bandwidth.cpp`
 
+## PR: 8.7.0 — Wi-Fi performance test (windowed UDP throughput)
+
+**Branch:** `lab8/wifi-perf-udpwtest-8.7.0` → `main`
+**Date:** 2026-11-26 · **Firmware:** v8.7.0 · **Status:** hardware-verified
+
+### What
+A windowed one-way UDP throughput test (`w`) that measures the ESP32's real
+throughput, packet loss and jitter — the three numbers the RTT-bound 8.6 echo
+test (`r`) cannot give. Plus a PC-side helper and measured iperf3 reference data.
+
+### Why
+The 8.6 test reports ~3 Mbit/s, which looks low for Wi-Fi. That number is a
+**stop-and-wait method artefact** (one packet in flight → RTT-bound), not a link
+limit. This PR measures the ESP and the link directly to prove it.
+
+### Changes
+- **`src/lab8_bandwidth.cpp` → v8.7.0** — Serial command `w` (one-way burst),
+  echo-node protocol `WSTART / WD / WEND / WREPORT`, RFC 3550 jitter,
+  out-of-order and loss from sequence numbers, 32-packet echo drain. `w` resumes
+  the movement monitor and shows the pause as the usual shaded gap.
+- **`src/udp_perf.py`** — PC side (pure Python 3 stdlib): `--recv` (ESP→PC) and
+  `--send --target` (PC→echo).
+- **`src/README_wtest.md`** — short run guide (points to §5.1 for detail).
+- **`src/lab8_wifi_performance.md/.pdf`** — §4.2 TCP + UDP sweep, §4.3 ESP
+  hardware results, §4.4 comparison, §5.1 method, §6 conclusions.
+
+### Protocol
+`WD` = `"WD"` + 4-byte BE seq + 4-byte BE send_micros + filler. Control:
+`WSTART`→`WOK`, `WEND`→`WREPORT rx_pkts=.. rx_bytes=.. dur_us=.. maxseq=.. jitter_us=.. ooo=..`.
+Reuses the echo socket on UDP 5001; subnet-gated like the rest of the system.
+
+### How to run
+```
+w                 # on A: A -> echo nodes B and C
+w <pc-ip>         # on A, with `python udp_perf.py --recv` on the PC
+python udp_perf.py --send --target 192.168.32.51 ...   # PC -> echo node
+```
+
+### Results (measured 2026-11-26)
+| Path | Throughput | Loss | Jitter |
+|---|---|---|---|
+| A → B | 11.00 Mbit/s | 2.3 % | 0.49 ms |
+| A → C | 10.98 Mbit/s | 2.2 % | 1.88 ms |
+| A → PC (tx) | 11.38 Mbit/s | — | — |
+| PC ↔ PC (iperf3, TCP) | ~40 Mbit/s | — | — |
+| PC ↔ PC (iperf3, UDP ceiling) | ~48 Mbit/s | onset at 50 | 0.2–1.1 ms |
+
+**The story is 3 → 11 → 48 Mbit/s** (method → ESP → link). The ESP tops out at
+~11 Mbit/s (single stream + CPU); the 2.4 GHz link carries ~4× more. The node,
+not the Wi-Fi, is the bottleneck.
+
+### Testing
+- [x] g++ syntax check (exit 0)
+- [x] `udp_perf.py` loopback self-test
+- [x] Hardware test on ESP32 (2026-11-26) — numbers above
+
+### Notes
+- Firmware is hardware-verified; merge the verified build (as with the 8.6.x line).
+- `A → PC` gave tx only — WSL2 NAT blocked the return report; run the PC receiver
+  under native Windows Python (or use the `PC → echo` direction) for full rx stats.
+
 # PR: lab8/kk3-energy
 
 **Branch:** `lab8/KK3-energy`
