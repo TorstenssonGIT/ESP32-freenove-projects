@@ -93,7 +93,7 @@ network (`DIRECT-93-HP OfficeJet 8010`), which has no internet access.
 | 3 | Connect to an internet webpage | Join the configured 2.4 GHz network as host name `lab8-esp32`; report IP, gateway, subnet and DNS on Serial and name + IP on the LCD; check `http://connectivitycheck.gstatic.com/generate_204` (HTTP 204 = internet OK) every 30 s. | Done (8.4): connected as `lab8-esp32` (192.168.32.6, DNS 192.168.32.1), HTTP 204 in ~300 ms; smoke-test PASS on COM3; router off shows "WiFi FAIL" and recovers. 8.4b: credentials moved to NVS (XOR-obfuscated), entered via Serial menu; smoke-test PASS. |
 | 3b | Web status page on the ESP32 | Serve `http://<esp-ip>/` and `http://lab8-esp32.local/` with the latest scan result and connection/internet status (hostname, IP, gateway, subnet, DNS, HTTP result); `/api/status` returns JSON for the Python smoke-test. Feature 6 later adds the LCD text form to this same server. | Done (8.5): page at `http://<ip>/` and `http://lab8-esp32.local/`, JSON at `/api/status`; read-only, local subnet only, SSIDs escaped; connect time / reconnects / uptime and NTP local time shown; web smoke-test, 8.4 smoke-test and router off/on PASS. |
 | 4 | Print a scan report on the HP printer over Wi-Fi | Target printer: HP OfficeJet 8010 series, reached through its Wi-Fi Direct network. The ESP32 scans nearby networks, then sends a plain-text report to port 9100 (JetDirect/raw), ending with a form feed. Each network: SSID as ASCII text and as hex (same as `ssid="…"` and `ssid_hex=` on Serial; non-printable characters as `?` in the text), RSSI, channel, security; open networks marked. | PC test passed: plain text to port 9100 over Wi-Fi Direct printed correctly (no PCL needed). ESP32 firmware planned (8.7). |
-| 5 | Run a Wi-Fi bandwidth test | Use a controlled endpoint and a bounded test; show the result/status on the LCD. | Done (8.6, router mode): one firmware `lab8_bandwidth.cpp`, role set by a jumper (GPIO 42 to GND = echo server B). 100 UDP packets per size 32–1460 B: 0 lost in two runs, median RTT 5.4–8.3 ms, up to 2.7 Mbit/s; A ≈ 0.93 W, B ≈ 0.67 W during a series. Now 3 legs: A measures against both echo servers, B (`lab8-echo`, .51) and C (`lab8-echo2`, .52), one series each (`node=B`/`node=C`). Terminal evidence for all three boards is the combined capture under *Board C*. Each run is NTP-timestamped and the web page shows one graph per packet size (throughput + RTT over the last 20 runs). Direct mode planned. |
+| 5 | Run a Wi-Fi bandwidth test | Use a controlled endpoint and a bounded test; show the result/status on the LCD. | Done (8.6, router mode): one firmware `lab8_bandwidth.cpp`, role set by a jumper (GPIO 42 to GND = echo server B). 100 UDP packets per size 32–1460 B: 0 lost in two runs, median RTT 5.4–8.3 ms, up to 2.7 Mbit/s; A ≈ 0.93 W, B ≈ 0.67 W during a series. Now 3 legs: A measures against both echo servers, B (`lab8-echo`, .51) and C (`lab8-echo2`, .52), one series each (`node=B`/`node=C`). Terminal evidence for all three boards is the combined capture under *Board C*. Each run is NTP-timestamped and the web page shows one graph per packet size (throughput + RTT over the last 20 runs). Direct mode planned. **8.7 performance test added:** windowed UDP burst (`w`, v8.7.0) measures the ESP's real throughput/loss/jitter — ESP ~11 Mbit/s vs link ~40–48 Mbit/s (iperf3); the `r` 3 Mbit/s is a stop-and-wait artefact, not the link. See the performance section below. |
 | 6 | Browse to the ESP32 and type text for the LCD | Serve a basic page from the ESP32; submitted text is shown on the existing LCD. This is a simple browser page, not a phone app. | Planned |
 | 7 | Wi-Fi radar: direction and movement | Find the direction to the router with a motor-turned reflector around the antenna; detect movement from changes in signal strength (see `lab8_radar_reflector.md`, `lab8_wifi_rt_design.md`). | Hardware verified: motor (4076 half steps per turn) and TMAG5273 index. Reflector and radar firmware: phase 1 planned (KK3). Movement monitor (phase 2a, first result 2026-11-22): B reports its router RSSI, PIR and power to A every second; movement on one leg of the V changes only that board's link (see "Movement monitor test"). |
 | 8 | Climate sensors, power measurement and motor | Read the HS3003 (box), SHT31-D (steam) and DHT11 (room); measure voltage, current and power with the INA226; turn the motor and find the index with the TMAG5273. | Motor and sensor test done: HS3003 (0x44), SHT31-D (0x45) and DHT11 agree within about 1.5 °C / 2 % RH; TMAG5273 index works; INA226 at rest 5.27 V / 86–90 mA / ≈ 460 mW; motor 4076 half steps per turn. SHT31-D heater and DHT11 recovery check pending. |
@@ -463,6 +463,25 @@ median RTT) with each `r` run stacked as a dated line. (Run 1 was captured befor
 the NTP change, so its time shows as `time-unknown`.)
 
 ![Static summary of the 3-leg bandwidth log. Top: throughput rises from ~0.07 Mbit/s at 32-byte payloads to ~3.0 Mbit/s at 1460 bytes as the fixed per-packet overhead is amortised over more data. Bottom: median round-trip time stays ~5–7 ms across all sizes. Each `r` run is one dated line per leg — B (`lab8-echo`, amber) and C (`lab8-echo2`, emerald) — and they track each other closely; 100 packets per size, 0 lost on every size. Run 1: 2026-11-24.](lab8_chart_bandwidth_r.png)
+
+### Why the 3 Mbit/s is not the Wi-Fi limit (8.7 performance test)
+
+The `r` test's ~3 Mbit/s looks low for Wi-Fi, but it is a **method artefact**: it is
+stop-and-wait (one packet in flight), so it measures `2 × size / RTT`, not the channel.
+A follow-up performance investigation (firmware **v8.7.0**, Serial command `w`) added a
+windowed one-way UDP burst that measures the ESP's real throughput, loss and jitter, with
+a PC-side helper (`udp_perf.py`) and an iperf3 PC↔PC reference. Measured 2026-11-26:
+
+| Measurement | What limits it | Result |
+|---|---|---|
+| `r` echo test (stop-and-wait) | RTT (one packet in flight) | ~3 Mbit/s |
+| `w` test (ESP, windowed burst) | ESP TX (single stream + CPU) | **~11 Mbit/s**, 2.3 % loss, jitter <2 ms |
+| iperf3 PC↔PC, 2.4 GHz (two hops) | Wi-Fi link only | ~40 Mbit/s (TCP), ~48 Mbit/s (UDP ceiling) |
+
+So the story is **3 → 11 → 48 Mbit/s** (method → ESP → link): windowing roughly triples the
+ESP number, but the ESP itself tops out near ~11 Mbit/s — about ¼ of the link — so the
+**node, not the Wi-Fi, is the bottleneck.** Full detail, protocol and sweeps:
+[lab8_wifi_performance.md](lab8_wifi_performance.md).
 
 ## Photos
 
